@@ -1,0 +1,32 @@
+h1:contexto 
+h1:objetivos 
+h2:objetivo-general 
+h2:objetivos-específicos 
+h1:metolodogía 
+h2:tratamiento-estadístico-y-pruebas-no-paramétricas 
+h2:análisis-de-solapamiento 
+h2:análisis-multivariado-y-control-de-multicolinealidad 
+h2:fases-del-procesamiento 
+h2:herramientas-tecnológicas 
+h1:descripción-del-conjunto-de-datos 
+tab:warning Primeras observaciones del dataset de fraude con tarjeta de crédito
+h1:limpieza-y-preparación-de-datos 
+h2:comprobación-de-duplicados 
+h2:conteo-de-datos-faltantes-y-porcentaje 
+h1:análisis-exploratorio-de-datos-eda 
+h2:análisis-univariado 
+h3:variable-class 
+h3:variable-time 
+h3:variable-amount 
+h3:variables-v1v28 
+h2:análisis-bivariado 
+h3:time-vs-class 
+tab:warning Resumen estadístico de la variable Time por clase
+h3:variables-v1..v28-vs-class 
+h3:amount-vs-class 
+h2:análisis-multivariado 
+h3:correlación 
+h3:variance-inflation-factor-vif 
+h1:análisis-temporal-de-las-transacciones 
+h1:conclusión 
+

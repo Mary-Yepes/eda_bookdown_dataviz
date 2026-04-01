@@ -1,0 +1,1350 @@
+--- 
+title: "Análisis Exploratorio de Datos - Detección de fraude"
+author: "Alejandra Meneses & Mariangel Yepes"
+date: "`r Sys.Date()`"
+site: bookdown::bookdown_site
+documentclass: book
+description: |
+  Es un ejercicio asignado por el profesor para realizarlo en R, contiene el ejercicio 1, 2 y 3K.
+link-citations: true
+github-repo: "rstudio/bookdown-demo"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(psych)
+library(car)
+library(broom)
+library(kableExtra)
+library(scales)
+library(effsize)
+library(corrplot)
+library(reshape2)
+library(patchwork)
+library(e1071)
+library(plotly)
+library(png)
+library(caret)
+library(glmnet)
+library(pROC)
+```
+
+# **Contexto**
+
+El fraude en transacciones con tarjeta de crédito es uno de los principales peligros para las entidades financieras a nivel mundial, por lo que poder detectarlo a tiempo es importante para reducir las pérdidas económicas, proteger a los clientes y mantener la confianza en los sistemas de pago electrónico. El fraude con tarjeta de crédito se refiere al uso ilegal y no autorizado de la tarjeta de crédito o de los datos de la tarjeta de otra persona para realizar transacciones o compras fraudulentas (Microblink, s.f.).
+
+El fraude siempre ha estado presente en la sociedad y ha tomado diversas formas a lo largo del tiempo. El fraude con tarjeta de crédito apareció por primera vez en la década de los 80, cuando se produjo un aumento significativo en el uso de tarjetas de crédito, débito y prepago a nivel mundial (Buonaguidi, 2017). Debido a este crecimiento, las instituciones financieras comenzaron a desarrollar sistemas para detectar actividades sospechosas. Inicialmente, estos sistemas se basaban en reglas predefinidas y revisiones manuales basadas en el conocimiento de expertos para identificar comportamientos inusuales en las transacciones. Posteriormente, se empezaron a utilizar métodos estadísticos tradicionales de clasificación, como el análisis discriminante lineal y la regresión logística, los cuales demostraron ser efectivos en muchas aplicaciones. Con el tiempo, se incorporaron técnicas más avanzadas como redes neuronales y otros métodos de aprendizaje automático, así como enfoques basados en reglas (rule-based methods) como Bayes o RIPPER, que permitieron mejorar la detección de patrones asociados al fraude (Bolton & Hand, 2002; Tarazona Nieto et al., 2022).
+
+ Una de las principales características que dificultan la detección del fraude es que es muy poco frecuente en comparación con las transacciones no fraudulentas, por lo que hay un problema de desbalance de clases, en el sentido de que la clase minoritaria puede estar subrepresentada y esto puede afectar el análisis exploratorio y el rendimiento de los modelos de predicción. El presente trabajo usa el dataset Credit Card Fraud Detection, disponible en el Kaggle, el cual contiene transacciones reales realizadas por los titulares de tarjetas de crédito europeos durante septiembre de 2013.
+
+# **Objetivos**
+
+## **Objetivo general**
+
+Diseñar y desarrollar un dashboard interactivo que permita visualizar y analizar la interacción entre las variables de las transacciones con tarjeta de crédito, con la implementación de un modelo de predicción que facilite la identificación de patrones asociados al fraude y contribuya a la detección temprana de transacciones fraudulentas.
+
+## **Objetivos específicos**
+
+1. Describir la estructura general del dataset.
+
+2. Evaluar el desbalance de la variable respuesta Class.
+
+3. Analizar la distribución de las variables numéricas usando estadísticas descriptivas y visualizaciones.
+
+4. Comparar las características de las transacciones fraudulentas y no fraudulentas.
+
+5. Identificar posibles patrones asociados al fraude.
+
+6. Detectar posibles relaciones entre variables mediante análisis de correlación.
+
+7. Generar conclusiones que ayuden a la selección de variables y modelos predictivos.
+
+# **Metolodogía**
+
+El presente estudio se desarrolla bajo un enfoque cuantitativo, pues se trabajan con números y estadísticas, de alcance descriptivo-correlacional, ya que se busca describir los datos y ver cómo se relacionan las variables con el fraude para la identificación de patrones anómalos en transacciones financieras. La metodología se estructura en las siguientes fases técnicas:
+
+## **Tratamiento Estadístico y Pruebas No Paramétricas**
+
+Dado que las variables del conjunto de datos, como el monto y las componentes V1-V28, presentan una distribución asimétrica, alta presencia de valores atípicos y hay un marcado desbalance de clases, se realizaron pruebas no paramétricas para mayor robustez. En consecuencia, se aplicó la prueba no paramétrica de **U de Mann-Whitney**. Esta prueba permite comparar las medianas de las distribuciones entre las transacciones no fraudulentas y fraudulentas sin asumir una distribución normal, garantizando la validez estadística de las comparaciones realizadas en el Análisis Exploratorio de Datos (EDA).
+
+Por otro lado, para evaluar la capacidad discriminativa de las variables continuas entre transacciones fraudulentas y no fraudulentas, se calculó el coeficiente de correlación biserial puntual (RBC), el cual permite cuantificar la relación entre una variable numérica y una binaria, en este caso `Class`: 0 = no fraude, 1 = fraude. Valores de RBC cercanos a ±1 indican que la variable separa claramente ambos grupos, mientras que valores cercanos a 0 indican un fuerte solapamiento y poca capacidad discriminativa, por lo que se usa la siguiente escala:
+
+- **|$r_{rb}$| > 0.5**: alta capacidad discriminante
+
+- **0.3 <= |$r_{rb}$| <= 0.5**: capacidad discriminante moderada. 
+
+- **|$r_{rb}$| < 0.3**: baja capacidad discriminante.
+
+## **Análisis de solapamiento**
+
+Un componente importante a definir es el solapamiento de clases. Este concepto se da cuando los valores de la variable en un grupo se mezclan o coinciden con los valores del otro grupo, en este caso, de los grupos fraude y no fraude. 
+
+**Identificación:** se analiza por medio de diagramas de densidad y boxplots, un alto solapamiento indica que la variable a estudiar no permite distinguir fraude de no fraude, pues ambos grupos tienen características muy similares, mientras que un bajo solapamiento señala un mejor poder predictivo.
+
+**Justificación:** analizar el solapamiento es importante para entender por qué ciertas variables pueden no tener un alto poder predictivo, y comprender porqué ciertos modelos de clasificación pueden presentar errores (falsos positivos o negativos) en zonas donde ambos grupos de datos comparten características similares.  
+
+## **Análisis Multivariado y Control de Multicolinealidad**
+
+Para asegurar la estabilidad del modelo predictivo, inicialmente de regresión logística, se analizan:
+
+- **Matrices de Correlación:** Para identificar relaciones lineales entre las variables.
+
+- **Factor de Inflación de la Varianza (VIF):** para detectar problemas de multicolinealidad, para descartar variables que aportan información redundante, y así optimizar la eficiencia del modelo de regresión logística.
+
+## **Fases del Procesamiento**
+
+El flujo de trabajo sigue el estándar de ciencia de datos:
+
+- **Preprocesamiento:** verificación de la integridad del dataset, es decir, revisión de valores faltantes, duplicados y consistencia de los tipos de datos. Transformación de la variable `Amount` por medio del logaritmo en los gráficos, para poder visualizar de mejor manera. 
+
+- **Análisis Exploratorio (EDA):** análisis univariado y bivariado con respecto a la variable respuesta `Class`, para analizar el comportamiento de las variables predictoras con esta. Análisis multivariado y control de multicolinealidad previamente mencionado.
+
+- **Evaluación del Desbalance:** análisis de la proporción de la clase minoritaria (fraude) para contextualizar las métricas de desempeño.
+
+- **Modelado Base:** Implementación del modelo de regresión logística para establecer un punto de referencia (baseline) en la detección de fraude.
+
+## **Herramientas Tecnológicas**
+
+El análisis se realiza utilizando el lenguaje de programación Python, apoyado en varias librerías especializadas:
+
+- **pandas y numpy** para la manipulación, limpieza y transformación de los datos.
+
+- **scipy.stats y pingouin** para la realización de pruebas estadísticas y cálculos de correlación.
+
+- **matplotlib, seaborn y plotly** (incluyendo **plotly.express** y **plotly.graph_objects**) para la visualización de los datos mediante gráficos estáticos e interactivos.
+
+- **statsmodels** para la evaluación de la multicolinealidad a través del Variance Inflation Factor (VIF).
+
+- **warnings** para garantizar la ejecución fluida de los análisis por medio de medidas de control de errores.
+
+# **Descripción del conjunto de datos**
+
+El conjunto de datos utilizado corresponde al dataset Credit Card Fraud Detection, disponible públicamente en Kaggle (https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud). El dataset contiene transacciones realizadas por titulares de tarjetas de crédito europeos durante dos días en septiembre de 2013, con la finalidad de investigar la detección de fraude. 
+
+```{r, warning=FALSE, message=FALSE}
+df <- read_csv("C:/Users/User/OneDrive/Escritorio/dataviz_python/data/creditcard.csv")
+
+head(df) %>% 
+  kable(
+    caption = "Primeras observaciones del dataset de fraude con tarjeta de crédito",
+    align = "c"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = TRUE,
+    position = "center"
+  ) %>% 
+  row_spec(0, bold = TRUE, background = "steelblue", color = "white") %>% 
+  scroll_box(height = "300px")
+```
+
+```{r}
+dim(df)
+```
+
+```{r}
+names(df)
+```
+
+***Información de atributos (por orden)***:
+
+**Numéricas**
+
+- **Time**: Tiempo en segundos transcurridos entre esta transacción y la primera transacción en el dataset .
+
+- **V1 – V28**: Componentes principales obtenidos mediante Análisis de Componentes Principales (PCA) para proteger la confidencialidad de las variables originales.
+
+- **Amount**: Monto de la transacción.
+
+**Categóricas**
+
+- **Class**: Variable respuesta (1 = fraude, 0 = no fraude).
+
+```{r}
+glimpse(df)
+```
+
+Se observa que se está interpretando **Class** como númerica a pesar de ser categórica, por lo que se hace la debida transformación.
+
+```{r}
+df$Class <- as.factor(df$Class)
+glimpse(df)
+```
+
+**Tabla de operacionalización de variables***
+
+```{r}
+descripcion_variables <- data.frame(
+  "Variable" = c("Time", "V1 – V28", "Amount", "Class"),
+  
+  "Definición" = c("Tiempo en segundos transcurridos desde la primera transacción del dataset.", "Componentes principales obtenidas mediante PCA para anonimizar las variables originales.", "Monto de la transacción.", "Indicador de fraude (1 = fraude, 0 = no fraude)."),
+  
+  "Naturaleza" = c("Cuantitativa continua", "Cuantitativa continua", "Cuantitativa continua", "Cualitativa"),
+  
+  "Nivel de medición" = c("De razón", "De intervalo", "De razón", "Nominal dicotómica"),
+  
+  "Criterio de clasificación" = c("Valor numérico ≥ 0 medido en segundos.", "Valores reales centrados obtenidos por combinación lineal.", "Valor numérico ≥ 0 expresado en unidades monetarias.", "Variable binaria (0 = no fraude, 1 = fraude).")
+)
+
+colnames(descripcion_variables) = gsub("\\.", " ", colnames(descripcion_variables)) 
+
+kable(descripcion_variables,
+      caption = "Tabla de Operacionalización de Variables - Fraude con tarjeta de crédito",
+      align = "c"
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,   
+    position = "center"
+  ) %>% 
+  row_spec(0, bold = TRUE, background = "steelblue", color = "white") %>%
+  column_spec(4, width = "180px") %>%
+  column_spec(5, width = "190px")
+```
+
+# **Limpieza y preparación de datos**
+
+## **Comprobación de duplicados**
+
+```{r}
+sum(duplicated(df))
+```
+
+Observamos que hay 1081 filas duplicadas, procedemos a eliminarlas:
+
+```{r}
+# Eliminar filas duplicadas
+df = unique(df)
+sum(duplicated(df))
+```
+
+Como podemos observar ya no hay filas duplicadas, se eliminaron exitosamente.
+
+## **Conteo de datos faltantes y porcentaje**
+
+```{r}
+colSums(is.na(df))
+```
+
+```{r}
+sum(is.na(df))
+```
+
+Es decir, no tenemos Na's o datos faltantes.
+
+# **Análisis Exploratorio de Datos (EDA)**
+
+## **Análisis univariado**
+
+```{r}
+resumen <- function(variable){
+  list (
+    mean = mean(variable),
+    sd = sd(variable),
+    median = median(variable),
+    IQR = IQR(variable),
+    min = min(variable),
+    max = max(variable),
+    Q1 = quantile(variable, 0.25),
+    Q3 = quantile(variable, 0.75)
+  )
+}
+
+
+```
+
+### **Variable Class**
+
+```{r, warning=FALSE, message=FALSE}
+# Tabla de frecuencias
+tabla_y <- df %>%
+  mutate(Class = ifelse(Class == 1, "Fraude", "No Fraude"),
+         Class = factor(Class, levels = c("No Fraude", "Fraude"))) %>% 
+  count(Class, name = "Transacciones") %>%
+  mutate(
+    Porcentaje = (Transacciones / sum(Transacciones)) * 100,
+    Porcentaje_red = round(Porcentaje, 2),
+    Etiqueta = paste0(
+      Transacciones,
+      " (",
+      Porcentaje_red,
+      "%)"
+    )
+  )
+
+tabla_y
+
+# Gráfico
+fig <- plot_ly(
+  tabla_y, 
+  x = ~Class, 
+  y = ~Transacciones, 
+  type = 'bar', 
+  text = ~Etiqueta,
+  hovertemplate = paste(
+    "Clase: %{x}<br>",
+    "Transacciones: %{y}<br>",
+    "Porcentaje: %{customdata:.2f}%<extra></extra>"
+  ),
+  customdata = ~Porcentaje,
+  marker = list(
+    color = 'rgb(158,202,225)',
+    line = list(color = 'rgb(8,48,107)',
+    width = 1.5)
+  ))
+
+fig <- fig %>% layout(title = "Distribución de transacciones: fraude vs no fraude",
+         xaxis = list(title = "Tipo de transacción"),
+         yaxis = list(title = "Número de transacciones"))
+
+fig
+```
+
+Se observa un desbalance extremo en la variable respuesta Class, pues con un total de 283.726 transacciones, 283.253 (99.83%) corresponden a transacciones no fraudulentas (Clase 0) y 473 (0.17%) corresponden a transacciones fraudulentas (Clase 1).
+
+### **Variable Time**
+
+```{r}
+time_uni = resumen(df$Time)
+
+tablatime_uni <- data.frame(
+  Variable = "Time",
+  `Media (SD)` = sprintf("%.2f (%.2f)", 
+                         time_uni$mean, 
+                         time_uni$sd),
+  `Mediana (IQR)` = sprintf("%.2f (%.2f)", 
+                            time_uni$median, 
+                            time_uni$IQR),
+  Min = time_uni$min,
+  Max = time_uni$max,
+  Q1 = time_uni$Q1,
+  Q3 = time_uni$Q3,
+  check.names = FALSE
+)
+
+rownames(tablatime_uni) <- NULL
+
+tablatime_uni
+```
+
+```{r}
+density <- density(df$Time)
+
+fig <- plot_ly(x = ~density$x, y = ~density$y, type = 'scatter', mode = 'lines', fill = 'tozeroy')
+fig <- fig %>% layout(title = "Distribución del tiempo entre transacciones",
+                      xaxis = list(title = 'Tiempo (segundos desde la primera transacción)'),
+         yaxis = list(title = 'Densidad', tickformat = ".2e"))
+
+fig
+```
+
+Se evidencia que la variable Time tiene un promedio de 94811.08 segundos (desviación estándar de 47,481.05 segundos), lo que muestra una gran dispersión temporal a lo largo del periodo del análisis. La mediana es de 84692.50 segundos con un IQR de 85093.25 segundos, esto indica que el 50% de las transacciones ocurre entre 54204.75 y 139298.0 segundos aproximadamente desde el inicio del periodo. Realmente, el rango va de 0.0 a 172792.0 segundos, que es el intervalo total de los dos días analizados, no representan necesariamente valores atípicos, sino los límites del tiempo de obersvación. Por otro lado, en el gráfico de densidad se evidencia una distribución aproximadamente simétrica. Por otro lado, en el gráfico se oberva que hay una cierta concentración relativa en las transacciones al inicio y al final del intervalo temporal, con una menor densidad en la parte intermedia, que puede representar el final del primer día. Del mismo modo, en la gráfica se observa una distribución más plana con colas más ligeras que una normal, por lo que los tiempos se distribuyen de manera relativamente homogénea a lo largo de los dos días. En conclusión, aunque la dispersión es alta por la naturaleza de la escala temporal, la distribución no tiene colas pesadas ni sesgos relevantes.
+
+### **Variable Amount**
+
+```{r}
+amount_uni = resumen(df$Amount)
+
+tablaamount_uni <- data.frame(
+  Variable = "Amount",
+  `Media (SD)` = sprintf("%.2f (%.2f)", 
+                         amount_uni$mean, 
+                         amount_uni$sd),
+  `Mediana (IQR)` = sprintf("%.2f (%.2f)", 
+                            amount_uni$median, 
+                            amount_uni$IQR),
+  Min = amount_uni$min,
+  Max = amount_uni$max,
+  Q1 = amount_uni$Q1,
+  Q3 = amount_uni$Q3,
+  check.names = FALSE
+)
+
+rownames(tablaamount_uni) <- NULL
+
+tablaamount_uni
+```
+
+La cantidad promedio transferido fue de 88.47 (desviación estándar de 250.40 euros), con un rango de 0 a 25691.16, lo que indica que se hicieron transacciones con valores muy bajos y otros muy altos. El 50% de las transacciones realizadas estuvieron por debajo de 22 euros, con un rango intercuartílico de 71.91. Por otro lado, el monto del 25% de las transacciones fue menor o igual a 5.60 euros, mientras que el 75% estuvo por debajo de 77.51 euros.
+
+```{r}
+fig <- plot_ly() #creamos un lienzo vacío
+
+fig <- fig %>% add_boxplot( #agrega un boxplot a la figura
+  data = df,
+  y = ~Amount,
+  name = "Amount",
+  marker = list(color = "#1f77b4")
+)
+
+fig <- fig %>% layout(
+  title = "Distribución del monto de las transacciones",
+  xaxis = list(showticklabels = FALSE),
+  yaxis = list(title = "Monto de la transacción")
+)
+
+fig
+```
+
+De acuerdo con el boxplot de la variable `Amount`, se evidencia una fuerte asímetria positiva, con una alta concentración de valores en montos bajos y una cola larga hacia valores elevados. Se observan múltiples valores extremos, lo cual sugiere una distribución altamente sesgada.
+
+### **Variables V1,...,V28**
+
+```{r}
+pc_df <- df %>% select(V1:V28)
+
+lista <- list()
+
+for (col in names(pc_df)) {
+  
+  stats <- resumen(pc_df[[col]])
+  
+  fila <- data.frame(
+    Variable = col,
+    "Media (SD)" = sprintf("%.2f (%.2f)", stats$mean, stats$sd),
+    "Mediana (IQR)" = sprintf("%.2f (%.2f)", stats$median, stats$IQR),
+    Min = stats$min,
+    Max = stats$max,
+    Q1 = stats$Q1,
+    Q3 = stats$Q3,
+    check.names = FALSE
+  )
+  
+  lista[[col]] <- fila
+}
+
+
+
+tabla_pcs <- do.call(rbind, lista)
+
+rownames(tabla_pcs) <- NULL
+
+kable(
+  tabla_pcs,
+  caption = "Resumen estadístico de las variables PCA",
+  align = "c"
+) %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed")) %>% 
+  row_spec(0, bold = TRUE, background = "steelblue", color = "white") %>% 
+  scroll_box(height = "300px")
+```
+
+Es importante recordar que estas variables corresponden a las componentes principales obtenidas mediante Análisis de Componentes Principales (PCA), la cual es una técnica que transforma un conjunto de variables correlacionadas en un nuevo conjunto de componentes ortogonales ordenadas según la varianza que explican. Como resultado de este proceso, todas las componentes se encuentran centradas alrededor de cero, lo que explica que tanto las **medias** como las **medianas** sean cercanas a este valor. Un aspecto importante y evidente es el patrón decreciente de la **desviación estándar**, que pasa de aproximadamente 1.95 en V1 a 0.33 en V28. Esto es característico del PCA, ya que las primeras componentes concentran una mayor proporción de la varianza total del conjunto original, mientras que las posteriores describen variaciones cada vez menores del espacio de datos; sin embargo, esto no se traduce en mayor importancia predictiva. 
+
+El **rango intercuartílico (IQR)** también muestra un descenso general conforme se avanza hacia las últimas componentes, lo cual es coherente con la reducción de varianza observada en la desviación estándar. No obstante, algunas componentes intermedias presentan rangos intercuartílicos ligeramente altos a la anterior, dado que esta medida refleja la dispersión del 50% central de los datos y no necesariamente sigue de manera estricta el mismo patrón que la varianza total, pues las colas pesadas o asimetrías pueden afectar. No obstante, en términos generales las variables que tienen mayor dispersión con respecto a la mediana son **V1 (IQR = 2.23)**, la cual captura la mayor variabilidad de los datos, V3, V4, V11, V2, V13, V5, V9, que siguen siendo parte de la primera mitad de las componentes.
+
+En cuanto a los **valores mínimos y máximos**, se observan extremos bastante amplios en algunas de las primeras componentes (por ejemplo, V2, V5, V7 y V8). Estos valores representan observaciones situadas en posiciones extremas dentro de la dirección definida por cada componente, es decir son datos atípicos en el dataset transformado, pero no necesariamente en el original, pero la combinaciones de los datos originales dieron generaron este comportamiento. La presencia de estos extremos contribuye a que la desviación estándar sea considerablemente mayor que el IQR en varias variables, como las previamente mencionadas, lo que sugiere colas pesadas y una concentración de dispersión en pocos casos extremos más que en la variabilidad central.
+
+Es decir, a pesar que las primeras componentes (aproximadamente V1–V4) concentran la mayor parte de la dispersión global del espacio transformado, la forma de las distribuciones y la presencia de valores extremos no desaparecen necesariamente en las componentes finales, cómo veremos a continuación.
+
+
+```{r fig.height=45, fig.width=10}
+library(ggplot2)
+library(gridExtra)
+
+cols <- colnames(pc_df)
+
+plots <- lapply(seq_along(cols), function(i) {
+  ggplot(data.frame(y = pc_df[[cols[i]]]), aes(x = "", y = y)) +
+    geom_boxplot(
+      fill = "#1f77b4",
+      color = "#1f77b4",
+      alpha = 0.3,
+      outlier.color = "#1f77b4"
+    ) +
+    labs(title = cols[i], x = NULL, y = NULL) +
+    theme_bw() +
+    theme(
+      axis.text.x  = element_blank(),
+      axis.ticks.x = element_blank(),
+      plot.title   = element_text(hjust = 0.5, size = 11),
+      panel.grid.major.x = element_blank(),
+      plot.margin = margin(5, 10, 5, 10)
+    )
+})
+
+grid.arrange(
+  grobs = plots,
+  ncol  = 2,
+  top   = "Distribución de las componentes principales"
+)
+```
+
+
+Gracias al gran número de observaciones y la presencia de colas pesadas en varias variables, los diagramas de cajas y bigotes muestran una alta concentración de los valores atípicos, lo que dificulta la interpretación visual de la simetría. Por esto, se calculan los coeficientes de asimetría y curtosis para evaluar de manera cuantitativa la forma de las distribuciones a continuación.
+
+```{r}
+cols <- paste0("V", 1:28)
+lista <- list()
+
+for (col in cols) {
+  
+  lista[[col]] <- data.frame(
+    Variable = col,
+    Skew = round(skewness(df[[col]], type = 2, na.rm = TRUE), 2),
+    Kurtosis = round(kurtosis(df[[col]], type = 1, na.rm = TRUE), 2)
+  )
+}
+
+
+stats_df <- do.call(rbind, lista)
+
+rownames(stats_df) <- NULL
+
+stats_df
+```
+
+En primer lugar, en los **boxplots** de las variables se observa un patrón que concuerda con lo dicho previamente de la varianza del conjunto de datos. Las primeras variables (V1, V2, V3) muestran una mayor dispersión visual y una presencia más marcada de valores extremos que generan una asimetría a la izquierda, lo cual indica que gran parte de la variabilidad proyectada en estas direcciones se concentra en valores alejados del centro. Siguiendo este orden de ideas, conforme se avanza a variables componentes posteriores, la dispersión general disminuye, lo cual es consistente con la naturaleza del PCA. En estas variables posteriores, los valores atípicos tienden a distribuirse de manera más balanceada entre ambos extremos o a concentrarse menos intensamente en una sola dirección, reflejando distribuciones más centradas alrededor de cero.
+
+La **asimetría (skewness)** confirma estos patrones. V1, V2 y V3 presentan asimetría negativa fuerte, mientras que V4 presenta asimetría positiva, lo que indica colas extendidas en direcciones opuestas. Otras variables intermedias como V6, V7, V10 y V21 muestran asimetría positiva, mientras que V5, V8, V17, V20 y V23 presentan asimetría negativa. Esto evidencia que los extremos no se concentran sistemáticamente en una sola dirección a lo largo de las componentes, sino que dependen de la estructura específica capturada por cada una. Algunas variables como V11, V13, V15, V18, V19 y V22 presentan valores de skew cercanos a cero, lo que indica distribuciones aproximadamente simétricas. En el caso de V28, el skew elevado es indicio de una cola derecha pronunciada, posiblemente influenciada por observaciones extremas visibles en el boxplot. Sin embargo, dado que esta componente explica una proporción menor de la varianza total, su impacto estructural global es limitado.
+
+Por otro lado, en el **apuntamiento (Kurtosis)** los valores superiores a 3 indican distribuciones leptocúrticas que se caracterizan por colas pesadas y una mayor presencia de valores extremos. Variables como V1, V2, V5, V7, V8, V20, V21, V23 y V28 tienen kurtosis muy alta, lo que confirma las colas pesadas generadas por la gran cantidad de outliers observadas en los boxplots y contribuye a que la desviación estándar sea relativamente mayor en comparación con el rango intercuartílico. En cambio, variables como V11, V13, V15, V18, V19 tienen kurtosis más moderadas, lo que representa distribuciones mesocúrticas, es decir más planas y con menos valores extremos.
+
+En conjunto, las primeras componentes no solo concentran mayor varianza, sino que también exhiben mayor asimetría y colas más pesadas, lo que refleja que las direcciones principales de variabilidad presentan proyecciones con extremos marcados. Las componentes posteriores capturan variaciones más sutiles y presentan, en general, menor dispersión y menor intensidad en los extremos, lo cual es consistente con la lógica del PCA.
+
+## **Análisis bivariado**
+
+Con el fin de evaluar diferencias entre las transacciones fraudulentas y no fraudulentas en las variables numéricas continuas, se empleó la prueba no paramétrica de Mann-Withney U, pues permite ver si hay diferencias en la distribución de una variable entre dos grupos independientes sin asumir normalidad ni homogeneidad de varianzas. Además, resulta apropiado y aporta robustez al análisis, pues como se observó en el análisi univariado previo, la mayoría de las variables presentan una fuerte asimetría y valores extremos que generan colas pesadas.
+
+### **Time vs Class**
+
+```{r, warning=FALSE, message=FALSE}
+
+df$Class <- as.numeric(as.character(df$Class))
+
+# Separar grupos
+fraude <- df[df$Class == 1, ]
+no_fraude <- df[df$Class == 0, ]
+
+# Función resumen
+resumen <- function(variable) {
+  list(
+    n = sum(!is.na(variable)),
+    mean = mean(variable, na.rm = TRUE),
+    sd = sd(variable, na.rm = TRUE),
+    median = median(variable, na.rm = TRUE),
+    IQR = IQR(variable, na.rm = TRUE),
+    min = min(variable, na.rm = TRUE),
+    max = max(variable, na.rm = TRUE),
+    Q1 = quantile(variable, 0.25, na.rm = TRUE),
+    Q3 = quantile(variable, 0.75, na.rm = TRUE)
+  )
+}
+
+# Función tabla comparativa
+tabla_comparacion <- function(df, variable) {
+  
+  g1 <- fraude[[variable]]
+  g2 <- no_fraude[[variable]]
+  
+  res1 <- resumen(g1)
+  res2 <- resumen(g2)
+  
+  # Mann-Whitney
+  test <- wilcox.test(g1, g2, alternative = "two.sided", exact = FALSE)
+  
+  u_stat <- test$statistic
+  pvalue <- test$p.value
+  
+  # calculamos manualmente rbc
+  n1 <- length(g1)
+  n2 <- length(g2)
+
+  rbc_val <- -(1 - (2 * u_stat) / (n1 * n2))
+  
+  # Crear tabla
+  tabla <- data.frame(
+    Grupo = c("Fraude", "No fraude"),
+    n = c(res1$n, res2$n),
+    `Media (SD)` = c(
+      sprintf("%.2f (%.2f)", res1$mean, res1$sd),
+      sprintf("%.2f (%.2f)", res2$mean, res2$sd)
+    ),
+    `Mediana (IQR)` = c(
+      sprintf("%.2f (%.2f)", res1$median, res1$IQR),
+      sprintf("%.2f (%.2f)", res2$median, res2$IQR)
+    ),
+    `Min–Max` = c(
+      sprintf("%.2f–%.2f", res1$min, res1$max),
+      sprintf("%.2f–%.2f", res2$min, res2$max)
+    ),
+    Q1 = c(res1$Q1, res2$Q1),
+    Q3 = c(res1$Q3, res2$Q3),
+    U = c(round(u_stat, 3), ""),
+    p = c(format(pvalue, scientific = TRUE, digits = 3), ""),
+    `rbc` = c(sprintf("%.3f", rbc_val), ""),
+    check.names = FALSE
+  )
+  
+  return(tabla)
+}
+
+
+
+tabla <- tabla_comparacion(df, "Time")
+
+rownames(tabla) <- NULL
+
+kable(
+  tabla,
+  caption = "Resumen estadístico de la variable Time por clase",
+  align = "c"
+) %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed")) %>% 
+  row_spec(0, bold = TRUE, background = "steelblue", color = "white") %>% 
+  scroll_box(height = "300px")
+```
+
+```{r}
+No_Fraude <- df[which(df$Class == "0"),]
+densidad1 <- density(No_Fraude$Time)
+
+Fraude <- df[which(df$Class == "1"),]
+densidad2 <- density(Fraude$Time)
+
+fig <- plot_ly(x = ~densidad1$x, y = ~densidad1$y, type = 'scatter', mode = 'lines', name = 'No Fraude', fill = 'tozeroy', fillcolor = "rgba(31, 119, 180, 0.5)", line = list(color = "#1f77b4"))
+fig <- fig %>% add_trace(x = ~densidad2$x, y = ~densidad2$y, name = 'Fraude', fill = 'tozeroy', fillcolor = "rgba(214, 39, 40, 0.5)", line = list(color = "#d62728"))
+fig <- fig %>% layout(title = "Distribución del tiempo de las transacciones por tipo",
+                      xaxis = list(title = 'Tiempo'),
+         yaxis = list(title = 'Densidad', tickformat = ".2e"))
+
+fig
+```
+
+
+Las transacciones fraudulentas (n = 473) ocurren en un tiempo promedio de 80,450.51 segundos desde la primera transacción (desviación estándar de 48,636.18 segundos). La mediana es de 73,408 segundos (IQR = 87,892 segundos), lo que indica que el 50% de las transacciones fraudulentas se concentra entre 41,203 y 129,095 segundos aproximadamente. El mínimo fue de 406 segundos y el máximo de 170,348 segundos, lo que evidencia que los fraudes se distribuyen a lo largo de casi todo el periodo de observación.
+
+Las transacciones no fraudulentas (n = 283,253) presentan un tiempo promedio mayor (94,835.06 segundos con desviación estándar de 47,475.55 segundos), con una mediana de 84,711 segundos (IQR = 85,750 segundos). Luego, el 50% de estas transacciones se ubica entre 54,233 y 139,308 segundos. El rango completo va de 0 a 172,792 segundos, cubriendo todo el periodo analizado. Además, como se evidencia en el gráfico de densidad y de forma similar a lo observado previamente en la distribución sin clasificación, existe una mayor concentración relativa de transacciones al inicio y al final del intervalo temporal, con menor densidad en la parte intermedia, posiblemente asociada al final del primer día, esto se debe al fuerte desbalance entre clases donde la distribución global del tiempo se ve principalmente determinada por las transacciones no fraudulentas.
+
+Siguiendo este orden de ideas, las transacciones fraudulentas tienden a ocurrir un poco antes que las no fraudulentas, como lo reflejan la media y la mediana; sin embargo, ambas distribuciones tienen una gran dispersión y un solapamiento en prácticamente todo el intervalo temporal, lo que indica que el momento en el que ocurre la transacción no distingue de manera marcada entre fraude y no fraude. Esto es notorio, porque aunque la diferencia entre grupos resultó estadísticamente significativa (p < 0.05), el gran tamaño muestral puede hacer que diferencias pequeñas resulten estadísticamente significativas, por eso también se reporta el tamaño del efecto RBC = -0.169, el cual sugiere una magnitud práctica de la diferencia de pequeña.
+
+### **Variables V1,..,V28 vs Class**
+
+
+```{r}
+
+tabla_variable <- function(df, variable) {
+  
+  fraude <- df[df$Class == 1, ][[variable]]
+  no_fraude <- df[df$Class == 0, ][[variable]]
+  total <- df[[variable]]
+  
+  resumen <- function(x) {
+    list(
+      n = sum(!is.na(x)),
+      mean = mean(x, na.rm = TRUE),
+      sd = sd(x, na.rm = TRUE),
+      median = median(x, na.rm = TRUE),
+      Q1 = as.numeric(quantile(x, 0.25, na.rm = TRUE)),
+      Q3 = as.numeric(quantile(x, 0.75, na.rm = TRUE)),
+      IQR = as.numeric(IQR(x, na.rm = TRUE)),
+      min = min(x, na.rm = TRUE),
+      max = max(x, na.rm = TRUE)
+    )
+  }
+  
+  r_f <- resumen(fraude)
+  r_nf <- resumen(no_fraude)
+  r_t <- resumen(total)
+  
+  # Mann-Whitney
+  test <- wilcox.test(fraude, no_fraude, alternative = "two.sided", exact = FALSE)
+
+  u_stat <- as.numeric(test$statistic)
+  pvalue <- test$p.value
+  
+  # Rank-Biserial Correlation
+  n1 <- length(fraude)
+  n2 <- length(no_fraude)
+
+  rbc_val <- - (1 - (2 * u_stat) / (n1 * n2))
+  
+  tabla <- data.frame(
+    Variable = c(variable, "", ""),
+    Grupo = c("Fraude", "No fraude", "Total"),
+    n = c(r_f$n, r_nf$n, r_t$n),
+    
+    `Media (SD)` = c(
+      sprintf("%.2f (%.2f)", r_f$mean, r_f$sd),
+      sprintf("%.2f (%.2f)", r_nf$mean, r_nf$sd),
+      sprintf("%.2f (%.2f)", r_t$mean, r_t$sd)
+    ),
+    
+    Mediana = c(
+      sprintf("%.2f", r_f$median),
+      sprintf("%.2f", r_nf$median),
+      sprintf("%.2f", r_t$median)
+    ),
+    
+    Q1 = c(
+      sprintf("%.2f", r_f$Q1),
+      sprintf("%.2f", r_nf$Q1),
+      sprintf("%.2f", r_t$Q1)
+    ),
+    
+    Q3 = c(
+      sprintf("%.2f", r_f$Q3),
+      sprintf("%.2f", r_nf$Q3),
+      sprintf("%.2f", r_t$Q3)
+    ),
+    
+    IQR = c(
+      sprintf("%.2f", r_f$IQR),
+      sprintf("%.2f", r_nf$IQR),
+      sprintf("%.2f", r_t$IQR)
+    ),
+    
+    `Min–Max` = c(
+      sprintf("%.2f–%.2f", r_f$min, r_f$max),
+      sprintf("%.2f–%.2f", r_nf$min, r_nf$max),
+      sprintf("%.2f–%.2f", r_t$min, r_t$max)
+    ),
+    
+    U = c(round(u_stat, 3), "", ""),
+    p = c(format(pvalue, scientific = TRUE, digits = 3), "", ""),
+    `rbc` = c(sprintf("%.3f", rbc_val), "", "")
+  )
+  
+  rownames(tabla) <- NULL
+  
+  return(tabla)
+}
+
+variables <- names(df)[sapply(df, is.numeric)]
+
+variables <- setdiff(variables, c("Class", "Time", "Amount"))
+
+resultado_final <- do.call(rbind,
+                           lapply(variables, function(x) tabla_variable(df, x)))
+
+kable(
+  resultado_final,
+  caption = "Resumen estadístico de las variables PCA por clase",
+  align = "c"
+) %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed")) %>% 
+  row_spec(0, bold = TRUE, background = "steelblue", color = "white") %>% 
+  scroll_box(height = "300px")
+```
+
+```{r}
+# seleccionamos las variables V1-V28
+V <- names(df)[grepl("^V", names(df))]
+
+# separamos por grupo
+Fraude <- df[df$Class == 1, V]
+No_Fraude <- df[df$Class == 0, V]
+
+# calculamos los cuartiles por clase
+Q1_F  <- apply(Fraude, 2, function(x) as.numeric(quantile(x, 0.25, na.rm=TRUE)))
+Q3_F  <- apply(Fraude, 2, function(x) as.numeric(quantile(x, 0.75, na.rm=TRUE)))
+Q1_NF <- apply(No_Fraude, 2, function(x) as.numeric(quantile(x, 0.25, na.rm=TRUE)))
+Q3_NF <- apply(No_Fraude, 2, function(x) as.numeric(quantile(x, 0.75, na.rm=TRUE)))
+
+# calculamos rbc
+rbc_values <- sapply(V, function(col) {
+  
+  g1 <- Fraude[[col]]
+  g2 <- No_Fraude[[col]]
+  
+  test <- wilcox.test(g1, g2, exact = FALSE)
+  U <- as.numeric(test$statistic)
+  
+  n1 <- length(g1)
+  n2 <- length(g2)
+  
+  rbc <- -(1 - (2 * U) / (n1 * n2))
+  
+  return(rbc)
+})
+
+Datos_DF <- data.frame(
+  variables = V,
+  Q1_F = Q1_F,
+  Q3_F = Q3_F,
+  Q1_NF = Q1_NF,
+  Q3_NF = Q3_NF,
+  r_rb = rbc_values
+)
+
+# calculamos indice de solapamiento. Creamos una función.
+indice_solapamiento <- function(q1_f, q3_f, q1_nf, q3_nf) {
+  
+  lim_inf_i <- max(q1_f, q1_nf)
+  lim_sup_i <- min(q3_f, q3_nf)
+  
+  if (lim_inf_i < lim_sup_i) {
+    interseccion <- lim_sup_i - lim_inf_i
+  } else {
+    interseccion <- 0
+  }
+  
+  lim_inf_u <- min(q1_f, q1_nf)
+  lim_sup_u <- max(q3_f, q3_nf)
+  
+  union <- lim_sup_u - lim_inf_u
+  
+  if (union > 0) {
+    return(interseccion / union)
+  } else {
+    return(0)
+  }
+}
+
+Datos_DF$S <- mapply(
+  indice_solapamiento,
+  Datos_DF$Q1_F,
+  Datos_DF$Q3_F,
+  Datos_DF$Q1_NF,
+  Datos_DF$Q3_NF
+)
+
+Datos_DF$Hay_Solapamiento <- Datos_DF$S > 0
+
+# clasificamos según rbc
+clasificacion_criterio <- function(r_rb, S) {
+  valor_abs_rbc <- abs(r_rb)
+  
+  if (!is.na(valor_abs_rbc) && valor_abs_rbc >= 0.45 && S == 0) {
+    return(1)  # Alto poder
+  } else if (!is.na(valor_abs_rbc) && valor_abs_rbc >= 0.30) {
+    return(2)  # Moderado
+  } else {
+    return(3)  # Bajo
+  }
+}
+
+Datos_DF$Grupo <- mapply(clasificacion_criterio,
+                         Datos_DF$r_rb,
+                         Datos_DF$S)
+
+# imprimimos el resultado
+print(Datos_DF[, c("variables", "r_rb", "S", "Hay_Solapamiento", "Grupo")],
+      row.names = FALSE)
+```
+
+Dado que son muchas variables, vamos a definir un criterio para clasificarlas según su capacidad discriminativa, y tener claro cuáles pueden llegar a explicar las clases de la variable objetivo. Este umbral va a estar ligado al solapamiento del 50% central (intervalo entre Q1 y Q3) y al tamaño del efecto estimado mediante la correlación biserial por rangos (RBC). Se dividirán en tres grupos:
+
+- Alto poder discriminante: cuando los intervalos intercuartílicos no se solapan y el coeficiente rbc es |$r_{rb}$| > 0.5.
+
+- Moderado poder discriminante: cuando el tamaño del efecto es moderado (0.3 <= |$r_{rb}$| <= 0.5), aunque los cuartiles puedan superponerse parcialmente.
+
+- Bajo poder discriminante: cuando los cuartiles se solapan ampliamente y el tamaño del efecto es muy bajo (|$r_{rb}$| < 0.3).
+
+**Componentes con alta diferencia entre clases**
+
+Las componentes que presentan una mayor capacidad discriminativa fueron: `V2`, `V3`, `V4`, `V7`, `V9`, `V10`, `V11`, `V12`, `V14`, `V16` y `V17`. Los intervalos intercuartílicos no se superponen entre sí, indicando que el 50% central de los valores de fraude está completamente separado del 50% central de los no fraudes. El valor absoluto de la correlación biserial por rangos ($r_{rb}$) en todas las componentes es superior a 0.5, lo que indica un tamaño del efecto grande y una clara separación entre ambos grupos. Estas componentes son las que mejor discriminan entre fraude y no fraude, y constituyen las variables más prometedoras para la construcción del modelo predictivo.
+
+**Componentes con diferencia moderada**
+
+Las componentes `V1`, `V5`, `V6`, `V8`, `V18`, `V19`, `V20`, `V21`, `V14` y `V27` presentan un moderado poder discriminante. Es decir, los intervalos intercuartílicos se supornen de manera parcial o moderada, sugiriendo que del 50% central de los valores de fraude hay una zona de valores donde el 50% central de los datos de no fraude comparten casos típicos. Mientras tanto, el valor absoluto de la correlación biserial por rangos en algunas componentes es mayor o igual que 0.5, mientras que en otros esta bajo el umbral previamente establecido. Estas variables, no discriminan tan bien como las altas, sin embargo, pueden aportar información a la hora de construir el modelo.
+
+**Componentes con diferencia baja**
+
+En este grupo obtuvimos las variables: `V13`, `V15`, `V22`, `V23`, `V24`, `V25`, `V26`, `V28`. Los intervalos intercuartílicos se solapan ampliamente, lo que significa que del 50% central de los valores de fraude hay una zona de valores donde el 50% central de los datos de no fraude comparten casos típicos de manera usual. Por otro lado, el valor absoluto de la correlación biserial por rangos en todas las componentes es menor que 0.3, lo que sugiere un tamaño de efecto pequeño, indicando que no hay una diferencia grande entre ambos grupos. Estas variables, bajo estos umbrales no discrimnan, por lo tanto, se puede inferir que no sean de mucha ayuda al construir el modelo.
+
+```{r fig.height=45, fig.width=10}
+library(ggplot2)
+library(gridExtra)
+
+cols <- colnames(pc_df)
+
+plots <- lapply(seq_along(cols), function(i) {
+  ggplot(data.frame(x = as.factor(df$Class), y = pc_df[[cols[i]]]), aes(x = x, y = y)) +
+    geom_boxplot(
+      aes(fill = x),
+      color = "gray30",
+      alpha = 0.8,
+      outlier.alpha = 0.5
+    ) +
+    scale_fill_manual(
+      values = c("0" = "#1f77b4", "1" = "#d62728")  # azul = no fraude, rojo = fraude
+    ) +
+    labs(title = cols[i], x = NULL, y = NULL) +
+    theme_bw() +
+    theme(
+      axis.text.x  = element_blank(),
+      axis.ticks.x = element_blank(),
+      plot.title   = element_text(hjust = 0.5, size = 11),
+      panel.grid.major.x = element_blank(),
+      plot.margin = margin(5, 10, 5, 10),
+      legend.position = "none"
+    )
+})
+
+grid.arrange(
+  grobs = plots,
+  ncol  = 2,
+  top   = "Distribución de las componentes principales"
+)
+```
+
+
+```{r}
+# Asegurar que Class sea factor
+df$Class <- as.factor(df$Class)
+
+# Seleccionar solo V1–V28
+pc_df <- df %>% select(starts_with("V"))
+
+plots <- lapply(colnames(pc_df), function(col) {
+  
+  ggplot(df, aes(x = Class, y = .data[[col]])) +
+    geom_boxplot(fill = "steelblue", outlier.size = 0.3) +
+    labs(title = col, y = NULL, x = NULL) +
+    scale_x_discrete(labels = c("0" = "No fraude",
+                                "1" = "Fraude")) +
+    theme_minimal() +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
+})
+
+# Dividir en páginas de 8 plots
+n <- 8
+
+for(i in seq(1, length(plots), by = n)) {
+  print(wrap_plots(plots[i:min(i+n-1, length(plots))], ncol = 4))
+}
+```
+
+De acuerdo a los gráficos, podemos destacar varias cosas:
+
+- Los boxplots confirman visualmente la separación entre clases. En todas las componentes del grupo 1 se puede observar que no hay solapamiento entre las cajas de Fraude y No Fraude. Esto confirma que estas variables tienen una excelente capacidad discriminante.
+
+- La mediana para todas las componentes en la clase 0 (No fraude) es 0, mientras que en la clase 1 (Fraude) toma valores positivos o negativos según la componente.  
+
+- En todos los gráficos se evidencia una gran cantidad de valores atípicos en ambos grupos, especialmente en el grupo No fraude. Esto es de esperarse debido al fuerte desbalanceo de la base de datos.  
+
+- Las cajas del grupo Fraude son notablamente más altas que las de No fraude, es decir, presentan un mayor rango intercuartílico, y por tanto, una mayor variabilidad en las transacciones fraudulentas. 
+
+### **Amount vs Class**
+
+```{r}
+tabla2 <- tabla_comparacion(df, "Amount")
+
+rownames(tabla2) <- NULL
+
+kable(
+  tabla2,
+  caption = "Resumen estadístico de las variable Amount por clase",
+  align = "c"
+) %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed")) %>% 
+  row_spec(0, bold = TRUE, background = "steelblue", color = "white") %>% 
+  scroll_box(height = "300px")
+```
+
+La variable `Amount` presenta una mediana en transacciones fraudulentas de aproximidamente **9.82**, mientras que en transacciones no fraudulentas es de **22**, lo que sugiere que el fraude típico no necesariamente ocurre en transacciones de alto valor. Por otro lado, la media en fraude (123.87) con una desviación estándar de 260.21 es superior a la media en no fraude (88.41) con desviación estándar de 250.38. Sin embargo, esta diferencia en la media podría estar influenciado por la presencia de algunos valores extremos, previamente observados en el boxplot. El rango intercuartílico en transacciones fraudulentas (1 a 105.89) presenta un considerable solapamiento con el rango de las transacciones legítimas (5.67 a 77.46), lo que nos da a entender que no tiene una fuerte capacidad discriminativa, pues muchos de sus valores no permiten distinguir claramente entre fraude y no fraude. Entre las transacciones fraudulentas y no fraudulentas se evidencia una diferencia estadísticamente significativa entre ambos grupos (U = 59517129.5, p ≈ 0.003). El coeficiente de RBC (-0.112) indica que los grupos están muy solapados, no hay diferencia clara entre los dos.
+
+Ahora, haciendo un boxplot de la variable `Amount` divida en las clases de la variables `Class`:
+
+```{r}
+fig <- plot_ly()
+
+fig <- fig %>% add_boxplot(
+  data = df[df$Class == 0, ],
+  y = ~log(Amount),              
+  name = "No fraude",
+  marker = list(color = "#1f77b4"),
+  line = list(color = "#1f77b4"),
+  fillcolor = "rgba(31, 119, 180, 0.3)",
+  showlegend = TRUE
+)
+
+fig <- fig %>% add_boxplot(
+  data = df[df$Class == 1, ],
+  y = ~log(Amount),         
+  name = "Fraude",
+  marker = list(color = "#d62728"),
+  line = list(color = "#d62728"),
+  fillcolor = "rgba(214, 39, 40, 0.3)",
+  showlegend = TRUE
+)
+
+fig <- fig %>% layout(
+  title = "Distribución del monto de las transacciones (escala logarítmica)",
+  xaxis = list(
+    title = "Tipo de transacción",
+    tickvals = c(0, 1),
+    ticktext = c("No fraude", "Fraude")
+  ),
+  yaxis = list(title = "Logaritmo del monto de la transacción")
+)
+
+fig
+```
+
+
+Debido a la alta asimetría de la variable `Amount`, se aplicó una transformación logarítmica para visualizar de manera más clara la distribución de los datos. En este caso, se sigue evidenciando que la mediana en las transacciones no fraudulentas es mayor que en la de transacciones fraudulentas. A simple vista, se observa un considerable solapamiento entre ambas cajas, lo que reafirma más que `Amount` no separa fuertemente entre clases. Por otro lado, la clase Fraude parece más disperso hacia valores bajos, mientras que No fraude parece que tiene valores intermedios.
+
+## **Análisis multivariado**
+
+### **Correlación**
+
+Ya que algunas de las variables cuantitativas tienen distribuciones muy sesgadas y colas pesadas, se aplicó el coeficiente de correlación de Spearman, una medida no paramétrica basada en rangos. Este método es más resistente a valores extremos y no necesita asumir normalidad en los datos, como sí lo hace el coeficiente de Pearson. De este modo, se analizan las relaciones monotónica entre las variables sin que la falta de normalidad o los valores atípicos influyan.
+
+```{r}
+# quitar class
+df_corr <- df[, !(names(df) %in% "Class")]
+
+# correlación Spearman
+corr <- cor(df_corr, method = "spearman", use = "complete.obs")
+
+# formato largo
+corr_melt <- melt(corr)
+
+# triángulo inferior
+corr_melt <- corr_melt[as.numeric(corr_melt$Var1) >
+                       as.numeric(corr_melt$Var2), ]
+
+# heatmap
+ggplot(corr_melt, aes(x = Var2, y = Var1, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue",
+                       mid = "white",
+                       high = "red",
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  scale_y_discrete(limits = rev) +
+  labs(title = "Matriz de correlación - Dataset completo",
+       x = "",
+       y = "",
+       fill = "Spearman") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+        plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+list_moderada <- list()
+list_alta <- list()
+
+vars <- colnames(corr)
+n <- ncol(corr)
+
+# recorrer triángulo inferior
+for (i in 2:n) {
+  for (j in 1:(i-1)) {
+    
+    valor <- corr[i, j]
+    
+    # moderada
+    if (abs(valor) >= 0.5 && abs(valor) < 0.7) {
+      list_moderada[[length(list_moderada) + 1]] <- data.frame(
+        "Variable 1" = vars[i],
+        "Variable 2" = vars[j],
+        "Correlación" = valor,
+        check.names = FALSE
+      )
+    }
+    
+    # alta
+    if (abs(valor) >= 0.7) {
+      list_alta[[length(list_alta) + 1]] <- data.frame(
+        "Variable 1" = vars[i],
+        "Variable 2" = vars[j],
+        "Correlación" = valor
+      )
+    }
+  }
+}
+
+# asegurar estructura aunque estén vacíos
+df_moderada <- if (length(list_moderada) > 0) {
+  do.call(rbind, list_moderada)
+} else {
+  data.frame("Variable 1"=character(),
+             "Variable 2"=character(),
+             "Correlación"=numeric())
+}
+
+df_alta <- if (length(list_alta) > 0) {
+  do.call(rbind, list_alta)
+} else {
+  data.frame("Variable 1"=character(),
+             "Variable 2"=character(),
+             "Correlación"=numeric())
+}
+
+if (nrow(df_moderada) > 0) {
+  df_moderada$Clase <- "No fraude"
+  df_moderada$Tipo <- "Moderada"
+}
+
+if (nrow(df_alta) > 0) {
+  df_alta$Clase <- "No fraude"
+  df_alta$Tipo <- "Alta"
+}
+
+# unir solo los que tengan filas
+lista_final <- list()
+
+if (nrow(df_moderada) > 0) {
+  lista_final[[length(lista_final) + 1]] <- head(df_moderada)
+}
+
+if (nrow(df_alta) > 0) {
+  lista_final[[length(lista_final) + 1]] <- head(df_alta)
+}
+
+if (length(lista_final) > 0) {
+  
+  tabla_corr_general <- do.call(rbind, lista_final)
+  
+  tabla_corr_general <- tabla_corr_general[, 
+    c("Clase", "Tipo", "Variable 1", "Variable 2", "Correlación")]
+  
+  print(tabla_corr_general)
+  
+} else {
+  
+  cat("No se encontraron correlaciones moderadas ni altas (|ρ| ≥ 0.5).\n")
+  
+}
+```
+
+En este análisis de correlación inicial usando Spearman, muchas de las variables V1-V28 muestran correlaciones bajas entre sí y con las variables Amount y Time, es decir no hay relaciones montónica (no necesariamente lineales) fuertes. No obstante, hay correlaciones visibles como: V21 y V22 tienen una correlación positiva moderada (r = 0.68), mientras que V2 con Amount muestra una correlación negativa moderada (r = -0.50). De todas formas, no se observan patrones de correlación generalizados marcados. Cabe resaltar que la correlación de Pearson, que se sabe que mide la fuerza y dirección de la relación lineal entre dos variables continuas, es aproximadamente 0 entre las variables V1 hasta V28, debido a la ortogonalidad del proceso PCA.  A continuación, se realiza este mismo análisis pero separado por clases.
+
+```{r}
+
+
+# separar grupos
+df_no_fraude <- df[df$Class == 0, ]
+df_fraude    <- df[df$Class == 1, ]
+
+# quitar Class
+df_no_fraude_corr <- df_no_fraude[, !(names(df_no_fraude) %in% "Class")]
+df_fraude_corr    <- df_fraude[, !(names(df_fraude) %in% "Class")]
+
+# correlaciones Spearman
+corr_no_fraude <- cor(df_no_fraude_corr,
+                      method = "spearman",
+                      use = "complete.obs")
+
+corr_fraude <- cor(df_fraude_corr,
+                   method = "spearman",
+                   use = "complete.obs")
+
+# Función para graficar heatmap triangular
+plot_heatmap <- function(corr_matrix, titulo) {
+  
+  corr_melt <- melt(corr_matrix)
+  
+  # Triángulo inferior
+  corr_melt <- corr_melt[as.numeric(corr_melt$Var1) >
+                         as.numeric(corr_melt$Var2), ]
+  
+  ggplot(corr_melt, aes(x = Var2, y = Var1, fill = value)) +
+    geom_tile() +
+    scale_fill_gradient2(low = "blue",
+                         mid = "white",
+                         high = "red",
+                         midpoint = 0,
+                         limits = c(-1, 1)) +
+    scale_y_discrete(limits = rev) +
+    labs(title = titulo,
+         x = "",
+         y = "",
+         fill = "Spearman") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+          plot.title = element_text(hjust = 0.5))
+}
+
+# Crear gráficos
+g1 <- plot_heatmap(corr_no_fraude,
+                   "Correlación Spearman - No Fraude")
+
+g2 <- plot_heatmap(corr_fraude,
+                   "Correlación Spearman - Fraude")
+
+# mostramos gráficos
+g1
+
+g2
+```
+
+
+```{r}
+extraer_correlaciones <- function(corr_matrix, clase_label) {
+  
+  vars <- colnames(corr_matrix)
+  n <- ncol(corr_matrix)
+  
+  lista_moderada <- list()
+  lista_alta <- list()
+  
+  for (i in 2:n) {
+    for (j in 1:(i-1)) {
+      
+      valor <- corr_matrix[i, j]
+      
+      # Moderadas
+      if (abs(valor) >= 0.5 && abs(valor) < 0.7) {
+        lista_moderada[[length(lista_moderada) + 1]] <- data.frame(
+          "Variable 1" = vars[i],
+          "Variable 2" = vars[j],
+          "Correlación" = valor,
+          "Clase" = clase_label,
+          "Tipo" = "Moderada",
+          check.names = FALSE
+        )
+      }
+      
+      # Altas
+      if (abs(valor) >= 0.7) {
+        lista_alta[[length(lista_alta) + 1]] <- data.frame(
+          "Variable 1" = vars[i],
+          "Variable 2" = vars[j],
+          "Correlación" = valor,
+          "Clase" = clase_label,
+          "Tipo" = "Alta",
+          check.names = FALSE
+        )
+      }
+    }
+  }
+  
+  df_moderada <- if (length(lista_moderada) > 0) {
+    do.call(rbind, lista_moderada)
+  } else {
+    NULL
+  }
+  
+  df_alta <- if (length(lista_alta) > 0) {
+    do.call(rbind, lista_alta)
+  } else {
+    NULL
+  }
+  
+  return(list(moderada = df_moderada,
+              alta = df_alta))
+}
+
+res_no_fraude <- extraer_correlaciones(corr_no_fraude, "No fraude")
+res_fraude    <- extraer_correlaciones(corr_fraude, "Fraude")
+
+
+lista_final <- list()
+
+if (!is.null(res_no_fraude$moderada))
+  lista_final[[length(lista_final) + 1]] <- head(res_no_fraude$moderada)
+
+if (!is.null(res_no_fraude$alta))
+  lista_final[[length(lista_final) + 1]] <- head(res_no_fraude$alta)
+
+if (!is.null(res_fraude$alta))
+  lista_final[[length(lista_final) + 1]] <- head(res_fraude$alta)
+
+if (length(lista_final) > 0) {
+  
+  tabla_correlacion <- do.call(rbind, lista_final)
+  
+  tabla_correlacion <- tabla_correlacion[, 
+    c("Clase", "Tipo", "Variable 1", "Variable 2", "Correlación")]
+  
+  print(tabla_correlacion)
+  
+} else {
+  
+  cat("No se encontraron correlaciones ≥ 0.5\n")
+}
+```
+
+En el gráfico de correlación de la clase no fraude se observa un patrón muy similar al previamente visto, lo cual es normal debido al fuerte desbalance las correlaciones globales se ven determinadas por la clase del no fraude. Dentro de la clase de las transacciones no fraudulentas no se observa un aumento en el número de correlaciones moderadas y fuertes. Esto nos dice, que en general, dentro de esta clase no hay muchas correlaciones altas o relevantes entre las variables explicativas. Este comportamiento evidencia una cierta homogeneidad, pues dentro de esta clase, las variables no muestran un patrón consistente de subida o bajada conjunta dentro del grupo. 
+
+En la clase de transacciones fraudulentas se observan correlaciones moderadas a fuertes entre las primeras componentes principales (V1-18), con un total de 54 correlaciones fuertes, donde se destacan V18 con V17 (r ≈ 0.96), V17 con V16 (r ≈ 0.96 ) y V18 con V16 (r ≈ 0.94). Por otro lado, Time, Amount y las últimas variables resultantes de PCA (V19-V28) muestran correlaciones bajas. Esto se debe a que las primeras variables capturan la mayor parte de la variabilidad de los datos, por lo que hay más posibilidades de encontrar patrones. Además, en el subconjunto de fraude, al haber pocas observaciones comparado con no fraude, cada diferencia entre valores impacta más la correlación. Siguiendo este orden de ideas, al variar más relativamente entre sí, se generan correlaciones positivas o negativas más fuertes entre las componentes principales (V1-V18). Opuesto a lo que ocurre en la clase no fraude, que se presentan valores muy similares entre sí sin una patron o estructura, lo que genera correlaciones cercanas a 0. 
+
+Luego, este comportamiento evidencia patrones internos consistentes entre estas variables en transacciones fraudulentas. No obstante, estas correlaciones no necesariamente implican que las variables por sí solas diferencien fraude de no fraude, ya que el modelo debe aprender diferencias globales entre ambas clases para predecir correctamente.
+
+### **Variance Inflation Factor (VIF)**
+
+```{r}
+
+# utilizamos todas las columnas excepto Class
+X <- df[, !(names(df) %in% "Class")]
+
+# aplica una función a todas las variables y guarda el resultado en la variable vif_values
+vif_values <- sapply(colnames(X), function(var) {
+  
+  # quita la variable actual y deja el resto
+  otros <- setdiff(colnames(X), var)
+  
+  # construye una formula
+  formula <- as.formula(
+    paste(var, "~", paste(otros, collapse = "+"))
+  )
+  
+  # aplica un modelo de regresión lineal
+  modelo <- lm(formula, data = X)
+  
+  # extra el r^2 del modelo
+  r2 <- summary(modelo)$r.squared
+  
+  # formula del vif
+  return(1 / (1 - r2))
+})
+
+vif_data <- data.frame(
+  Variable = colnames(X),
+  VIF = vif_values
+)
+
+rownames(vif_data) <- NULL
+
+vif_data
+```
+
+Se calculó el VIF para evaluar la colinealidad entre las variables explicativas. Se observa que las variables V1 a V28 y Time presentan VIF cercanos a 1-5, lo que indica baja colinealidad y que estas aportan información independiente. Es de esperarse que las componentes principales (V1-V28) presenten VIF bajos, pues la ortogonalidad implica que ninguna componente puede predecirse como combinación lineal de las demás, lo que resulta en baja colinealidad. La variable Amount presenta VIF alto (~12), señalando colinealidad con otras variables del dataset. Debido a que las componentes principales V1–V28 ya capturan gran parte de la estructura de los datos, incluir Amount junto con las PCA podría generar redundancia, por lo que para modelos que son sensibles a la colinealidad se considera excluirla o aplicar técnicas de regularización.
+
+# **Análisis temporal de las transacciones**
+
+El análisis exploratorio previo permite plantear una pregunta adicional: ¿tienden a concentrarse montos más elevados en ciertos intervalos de tiempo o el comportamiento del monto es independiente del tiempo? Para este análisis se usa la mediana de **Amount** debido al gran sesgo de esta variable.
+
+```{r}
+df2 <- df
+df2$Hour <- (df2$Time %/% 3600) %% 24
+
+tiempo <- df2 %>%
+  group_by(Hour, Class) %>%
+  summarise(Mediana_Amount = median(Amount, na.rm = TRUE),
+            .groups = "drop") %>%
+  mutate(Tipo = ifelse(Class == 0, "No fraude", "Fraude"))  # creamos columna de texto
+
+fig <- plot_ly(
+  data = tiempo,
+  x = ~Hour,
+  y = ~Mediana_Amount,                                       # nombre correcto
+  color = ~Tipo,                                             # usamos la columna de texto
+  colors = c("No fraude" = "#1f77b4", "Fraude" = "#d62728"),
+  type = "scatter",
+  mode = "lines+markers",
+  hovertemplate = ~paste0(
+    "Hora del día (0-23): ", Hour, "<br>",
+    "Mediana del monto de la transacción: $", round(Mediana_Amount, 2), "<br>",
+    "Tipo de transacción: ", Tipo,
+    "<extra></extra>"       # elimina el bloque secundario que aparece por defecto
+  )
+) %>%
+layout(
+  title = "Mediana del monto de transacciones por hora del día según tipo",
+  xaxis = list(title = "Hora del día (0–23)"),
+  yaxis = list(title = "Mediana del monto de la transacción"),
+  legend = list(title = list(text = "Tipo de transacción"))
+)
+
+fig
+```
+
+
+A simple vista puede parecer que principalmente a las 12:00 am, las medianas de los montos de las transacciones fraudulentas son muy elevadas. De la misma manera ocurre a las 6:00 am y 2:00pm, sin embargo, no de forma tan extrema. No obstante, las transacciones fraudulentas muestran una alta variabilidad, con picos pronunciados en ciertas horas, lo que implica que estos no siguen un patrón uniforme y pueden concentrarse en intervalos específicos con valores elevados como mencionamos anteriormente. En contraste, el monto en las transacciones no fraudulentas presenta un comportamiento relativamente estable a lo largo del tiempo. 
+
+Aun así, debido al fuerte desbalance presente en la variable objetivo, las fluctuaciones que se observan en la clase fraude podrían estar influenciadas precisamente por el bajo número de observaciones en las horas analizadas. Luego, no es adecuado basar las conclusiones únicamente en la inspección gráfica, por lo que en el futuro se realizaría una prueba estadística formal para evaluar si las diferencias observadas en el tiempo son a causa de un patrón significativo o si pueden atribuirse a variabilidad aleatoria derivada del tamaño muestral reducido en la clase minoritaria.
+
+# **Conclusión**
+
+Este análisis exploratorio muestra que las transacciones fraudulentas y no fraudulentas tienen patrones distintos, aunque con bastante solapamiento en la mayoría de las variablles. Por ejemplo, a pesar de que variables como Time y Amount presenten diferencias estadísticamente significativas, su capacidad para diferenciar entre las clases es baja, gracias a la alta dispersión y superposición de valores entre clases. Por otro lado, en las variables (V1-V28) se identificaron variables con alto, moderado y bajo poder discriminativo, en especial las variables V2, V3, V4, V7, V9, V10, V11, V12, V14, V16 y V17 muestran rangos intercuartílicos separados y un grande tamaño de efecto (RBC > 0.5), por lo que son más útiles para diferenciar entre fraude y no fraude. Siguiendo este orden de ideas, en el EDA se evidencia que las transacciones fraudulentas son más disperas y variables que las no fraudulentas, y que la correlación entre algunas variables (V1-V28) es más fuerte en el grupo fraude, lo que indica ciertos patrones consistentes. Asimismo, las variables PCA tienen baja colinealidad, mientras que Amount es todo lo opuesto, por lo que podría generar redundancia al incluirse en el modelo con estas variables. De manera general, se puede concluir que para el modelado predictivo de fraude es importante agregar las componentes PCA con alto poder discriminativo, en cambio, Time y Amount, aunque son informativas, requieren ser combinadas con otras variables para mejorar su capacidad de clasificación.
