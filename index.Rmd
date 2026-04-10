@@ -32,6 +32,7 @@ library(caret)
 library(glmnet)
 library(pROC)
 library(patchwork)
+library(gridExtra)
 ```
 
 # **Contexto**
@@ -448,9 +449,6 @@ Es decir, a pesar que las primeras componentes (aproximadamente V1–V4) concent
 
 
 ```{r fig.height=45, fig.width=10}
-library(ggplot2)
-library(gridExtra)
-
 cols <- colnames(pc_df)
 
 plots <- lapply(seq_along(cols), function(i) {
@@ -458,7 +456,7 @@ plots <- lapply(seq_along(cols), function(i) {
     geom_boxplot(
       fill = "#1f77b4",
       color = "#1f77b4",
-      alpha = 0.3,
+      alpha = 0.8,
       outlier.color = "#1f77b4"
     ) +
     labs(title = cols[i], x = NULL, y = NULL) +
@@ -853,8 +851,6 @@ Las componentes `V1`, `V5`, `V6`, `V8`, `V18`, `V19`, `V20`, `V21`, `V14` y `V27
 En este grupo obtuvimos las variables: `V13`, `V15`, `V22`, `V23`, `V24`, `V25`, `V26`, `V28`. Los intervalos intercuartílicos se solapan ampliamente, lo que significa que del 50% central de los valores de fraude hay una zona de valores donde el 50% central de los datos de no fraude comparten casos típicos de manera usual. Por otro lado, el valor absoluto de la correlación biserial por rangos en todas las componentes es menor que 0.3, lo que sugiere un tamaño de efecto pequeño, indicando que no hay una diferencia grande entre ambos grupos. Estas variables, bajo estos umbrales no discrimnan, por lo tanto, se puede inferir que no sean de mucha ayuda al construir el modelo.
 
 ```{r fig.height=45, fig.width=10}
-library(ggplot2)
-library(gridExtra)
 
 cols <- colnames(pc_df)
 
@@ -862,12 +858,12 @@ plots <- lapply(seq_along(cols), function(i) {
   ggplot(data.frame(x = as.factor(df$Class), y = pc_df[[cols[i]]]), aes(x = x, y = y)) +
     geom_boxplot(
       aes(fill = x),
-      color = "gray30",
+      color = "#1f77b4",
       alpha = 0.8,
       outlier.alpha = 0.5
     ) +
     scale_fill_manual(
-      values = c("0" = "#1f77b4", "1" = "#1f77b4")  # azul = no fraude, rojo = fraude
+      values = c("0" = "#1f77b4", "1" = "#1f77b4")
     ) +
     labs(title = cols[i], x = NULL, y = NULL) +
     theme_bw() +
@@ -930,7 +926,7 @@ fig <- fig %>% add_boxplot(
   marker = list(color = "#1f77b4"),
   line = list(color = "#1f77b4"),
   fillcolor = "rgba(31, 119, 180, 0.3)",
-  showlegend = TRUE
+  showlegend = FALSE
 )
 
 fig <- fig %>% add_boxplot(
@@ -939,8 +935,8 @@ fig <- fig %>% add_boxplot(
   name = "Fraude",
   marker = list(color = "#1f77b4"),
   line = list(color = "#1f77b4"),
-  fillcolor = "rgba(214, 39, 40, 0.3)",
-  showlegend = TRUE
+  fillcolor = "rgba(31, 119, 180, 0.3)",
+  showlegend = FALSE
 )
 
 fig <- fig %>% layout(
@@ -1087,7 +1083,7 @@ if (length(lista_final) > 0) {
 
 En este análisis de correlación inicial usando Spearman, muchas de las variables V1-V28 muestran correlaciones bajas entre sí y con las variables Amount y Time, es decir no hay relaciones montónica (no necesariamente lineales) fuertes. No obstante, hay correlaciones visibles como: V21 y V22 tienen una correlación positiva moderada (r = 0.68), mientras que V2 con Amount muestra una correlación negativa moderada (r = -0.50). De todas formas, no se observan patrones de correlación generalizados marcados. Cabe resaltar que la correlación de Pearson, que se sabe que mide la fuerza y dirección de la relación lineal entre dos variables continuas, es aproximadamente 0 entre las variables V1 hasta V28, debido a la ortogonalidad del proceso PCA.  A continuación, se realiza este mismo análisis pero separado por clases.
 
-```{r}
+```{r fig.height=7, fig.width=12, dpi=300}
 # Función actualizada: sin leyenda individual
 plot_heatmap <- function(corr_matrix, titulo) {
   
@@ -1106,12 +1102,15 @@ plot_heatmap <- function(corr_matrix, titulo) {
     scale_y_discrete(limits = rev) +
     labs(title = titulo, x = "", y = "") +
     theme_minimal() +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
-          plot.title = element_text(hjust = 0.5))
+    theme(
+      axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 7),
+      axis.text.y = element_text(size = 7),
+      plot.title = element_text(hjust = 0.5)
+    )
 }
 
-g1 <- plot_heatmap(corr_no_fraude, "Correlación Spearman - No Fraude")
-g2 <- plot_heatmap(corr_fraude,    "Correlación Spearman - Fraude")
+g1 <- plot_heatmap(corr_no_fraude, "Correlacion Spearman - No Fraude")
+g2 <- plot_heatmap(corr_fraude,    "Correlacion Spearman - Fraude")
 
 # Combinar con barra compartida
 g1 + g2 + plot_layout(guides = "collect") &
@@ -1299,7 +1298,7 @@ Aun así, debido al fuerte desbalance presente en la variable objetivo, las fluc
 
 Este análisis exploratorio muestra que las transacciones fraudulentas y no fraudulentas tienen patrones distintos, aunque con bastante solapamiento en la mayoría de las variablles. Por ejemplo, a pesar de que variables como Time y Amount presenten diferencias estadísticamente significativas, su capacidad para diferenciar entre las clases es baja, gracias a la alta dispersión y superposición de valores entre clases. Por otro lado, en las variables (V1-V28) se identificaron variables con alto, moderado y bajo poder discriminativo, en especial las variables V2, V3, V4, V7, V9, V10, V11, V12, V14, V16 y V17 muestran rangos intercuartílicos separados y un grande tamaño de efecto (RBC > 0.5), por lo que son más útiles para diferenciar entre fraude y no fraude. Siguiendo este orden de ideas, en el EDA se evidencia que las transacciones fraudulentas son más disperas y variables que las no fraudulentas, y que la correlación entre algunas variables (V1-V28) es más fuerte en el grupo fraude, lo que indica ciertos patrones consistentes. Asimismo, las variables PCA tienen baja colinealidad, mientras que Amount es todo lo opuesto, por lo que podría generar redundancia al incluirse en el modelo con estas variables. De manera general, se puede concluir que para el modelado predictivo de fraude es importante agregar las componentes PCA con alto poder discriminativo, en cambio, Time y Amount, aunque son informativas, requieren ser combinadas con otras variables para mejorar su capacidad de clasificación.
 
-# **9. Referencias**
+# **Referencias**
 
 Microblink. (s.f.). *Fraude con tarjetas de crédito*. https://microblink.com/es/resources/glossary/credit-card-fraud/
 

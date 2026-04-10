@@ -23,7 +23,7 @@
 <meta name="author" content="Alejandra Meneses &amp; Mariangel Yepes" />
 
 
-<meta name="date" content="2026-04-01" />
+<meta name="date" content="2026-04-10" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -31,7 +31,7 @@
   
   
 <link rel="prev" href="análisis-temporal-de-las-transacciones.html"/>
-
+<link rel="next" href="referencias.html"/>
 <script src="libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
 <link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
@@ -165,7 +165,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li class="chapter" data-level="3.4" data-path="metolodogía.html"><a href="metolodogía.html#fases-del-procesamiento"><i class="fa fa-check"></i><b>3.4</b> <strong>Fases del Procesamiento</strong></a></li>
 <li class="chapter" data-level="3.5" data-path="metolodogía.html"><a href="metolodogía.html#herramientas-tecnol%C3%B3gicas"><i class="fa fa-check"></i><b>3.5</b> <strong>Herramientas Tecnológicas</strong></a></li>
 </ul></li>
-<li class="chapter" data-level="4" data-path="descripción-del-conjunto-de-datos.html"><a href="descripción-del-conjunto-de-datos.html"><i class="fa fa-check"></i><b>4</b> <strong>Descripción del conjunto de datos</strong></a></li>
+<li class="chapter" data-level="4" data-path="descripción-del-conjunto-de-datos.html"><a href="descripción-del-conjunto-de-datos.html"><i class="fa fa-check"></i><b>4</b> <strong>Descripción del conjunto de datos</strong></a>
+<ul>
+<li class="chapter" data-level="4.1" data-path="descripción-del-conjunto-de-datos.html"><a href="descripción-del-conjunto-de-datos.html#an%C3%A1lisis-de-datos-at%C3%ADpicos"><i class="fa fa-check"></i><b>4.1</b> <strong>Análisis de datos atípicos</strong></a></li>
+</ul></li>
 <li class="chapter" data-level="5" data-path="limpieza-y-preparación-de-datos.html"><a href="limpieza-y-preparación-de-datos.html"><i class="fa fa-check"></i><b>5</b> <strong>Limpieza y preparación de datos</strong></a>
 <ul>
 <li class="chapter" data-level="5.1" data-path="limpieza-y-preparación-de-datos.html"><a href="limpieza-y-preparación-de-datos.html#comprobaci%C3%B3n-de-duplicados"><i class="fa fa-check"></i><b>5.1</b> <strong>Comprobación de duplicados</strong></a></li>
@@ -194,6 +197,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul></li>
 <li class="chapter" data-level="7" data-path="análisis-temporal-de-las-transacciones.html"><a href="análisis-temporal-de-las-transacciones.html"><i class="fa fa-check"></i><b>7</b> <strong>Análisis temporal de las transacciones</strong></a></li>
 <li class="chapter" data-level="8" data-path="conclusión.html"><a href="conclusión.html"><i class="fa fa-check"></i><b>8</b> <strong>Conclusión</strong></a></li>
+<li class="chapter" data-level="9" data-path="referencias.html"><a href="referencias.html"><i class="fa fa-check"></i><b>9</b> <strong>Referencias</strong></a></li>
 <li class="divider"></li>
 <li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
 
@@ -217,15 +221,14 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div id="conclusión" class="section level1 hasAnchor" number="8">
 <h1><span class="header-section-number">8</span> <strong>Conclusión</strong><a href="conclusión.html#conclusi%C3%B3n" class="anchor-section" aria-label="Anchor link to header"></a></h1>
 <p>Este análisis exploratorio muestra que las transacciones fraudulentas y no fraudulentas tienen patrones distintos, aunque con bastante solapamiento en la mayoría de las variablles. Por ejemplo, a pesar de que variables como Time y Amount presenten diferencias estadísticamente significativas, su capacidad para diferenciar entre las clases es baja, gracias a la alta dispersión y superposición de valores entre clases. Por otro lado, en las variables (V1-V28) se identificaron variables con alto, moderado y bajo poder discriminativo, en especial las variables V2, V3, V4, V7, V9, V10, V11, V12, V14, V16 y V17 muestran rangos intercuartílicos separados y un grande tamaño de efecto (RBC &gt; 0.5), por lo que son más útiles para diferenciar entre fraude y no fraude. Siguiendo este orden de ideas, en el EDA se evidencia que las transacciones fraudulentas son más disperas y variables que las no fraudulentas, y que la correlación entre algunas variables (V1-V28) es más fuerte en el grupo fraude, lo que indica ciertos patrones consistentes. Asimismo, las variables PCA tienen baja colinealidad, mientras que Amount es todo lo opuesto, por lo que podría generar redundancia al incluirse en el modelo con estas variables. De manera general, se puede concluir que para el modelado predictivo de fraude es importante agregar las componentes PCA con alto poder discriminativo, en cambio, Time y Amount, aunque son informativas, requieren ser combinadas con otras variables para mejorar su capacidad de clasificación.</p>
-
 </div>
             </section>
 
           </div>
         </div>
       </div>
-<a href="análisis-temporal-de-las-transacciones.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
-
+<a href="análisis-temporal-de-las-transacciones.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="referencias.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
     </div>
   </div>
 <script src="libs/gitbook-2.6.7/js/app.min.js"></script>

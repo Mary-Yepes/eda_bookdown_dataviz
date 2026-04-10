@@ -23,7 +23,7 @@
 <meta name="author" content="Alejandra Meneses &amp; Mariangel Yepes" />
 
 
-<meta name="date" content="2026-04-01" />
+<meta name="date" content="2026-04-10" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -165,7 +165,10 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li class="chapter" data-level="3.4" data-path="metolodogía.html"><a href="metolodogía.html#fases-del-procesamiento"><i class="fa fa-check"></i><b>3.4</b> <strong>Fases del Procesamiento</strong></a></li>
 <li class="chapter" data-level="3.5" data-path="metolodogía.html"><a href="metolodogía.html#herramientas-tecnol%C3%B3gicas"><i class="fa fa-check"></i><b>3.5</b> <strong>Herramientas Tecnológicas</strong></a></li>
 </ul></li>
-<li class="chapter" data-level="4" data-path="descripción-del-conjunto-de-datos.html"><a href="descripción-del-conjunto-de-datos.html"><i class="fa fa-check"></i><b>4</b> <strong>Descripción del conjunto de datos</strong></a></li>
+<li class="chapter" data-level="4" data-path="descripción-del-conjunto-de-datos.html"><a href="descripción-del-conjunto-de-datos.html"><i class="fa fa-check"></i><b>4</b> <strong>Descripción del conjunto de datos</strong></a>
+<ul>
+<li class="chapter" data-level="4.1" data-path="descripción-del-conjunto-de-datos.html"><a href="descripción-del-conjunto-de-datos.html#an%C3%A1lisis-de-datos-at%C3%ADpicos"><i class="fa fa-check"></i><b>4.1</b> <strong>Análisis de datos atípicos</strong></a></li>
+</ul></li>
 <li class="chapter" data-level="5" data-path="limpieza-y-preparación-de-datos.html"><a href="limpieza-y-preparación-de-datos.html"><i class="fa fa-check"></i><b>5</b> <strong>Limpieza y preparación de datos</strong></a>
 <ul>
 <li class="chapter" data-level="5.1" data-path="limpieza-y-preparación-de-datos.html"><a href="limpieza-y-preparación-de-datos.html#comprobaci%C3%B3n-de-duplicados"><i class="fa fa-check"></i><b>5.1</b> <strong>Comprobación de duplicados</strong></a></li>
@@ -194,6 +197,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </ul></li>
 <li class="chapter" data-level="7" data-path="análisis-temporal-de-las-transacciones.html"><a href="análisis-temporal-de-las-transacciones.html"><i class="fa fa-check"></i><b>7</b> <strong>Análisis temporal de las transacciones</strong></a></li>
 <li class="chapter" data-level="8" data-path="conclusión.html"><a href="conclusión.html"><i class="fa fa-check"></i><b>8</b> <strong>Conclusión</strong></a></li>
+<li class="chapter" data-level="9" data-path="referencias.html"><a href="referencias.html"><i class="fa fa-check"></i><b>9</b> <strong>Referencias</strong></a></li>
 <li class="divider"></li>
 <li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
 
@@ -217,12 +221,12 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <div id="header">
 <h1 class="title">Análisis Exploratorio de Datos - Detección de fraude</h1>
 <p class="author"><em>Alejandra Meneses &amp; Mariangel Yepes</em></p>
-<p class="date"><em>2026-04-01</em></p>
+<p class="date"><em>2026-04-10</em></p>
 </div>
 <div id="contexto" class="section level1 hasAnchor" number="1">
 <h1><span class="header-section-number">1</span> <strong>Contexto</strong><a href="index.html#contexto" class="anchor-section" aria-label="Anchor link to header"></a></h1>
-<p>El fraude en transacciones con tarjeta de crédito es uno de los principales peligros para las entidades financieras a nivel mundial, por lo que poder detectarlo a tiempo es importante para reducir las pérdidas económicas, proteger a los clientes y mantener la confianza en los sistemas de pago electrónico. El fraude con tarjeta de crédito se refiere al uso ilegal y no autorizado de la tarjeta de crédito o de los datos de la tarjeta de otra persona para realizar transacciones o compras fraudulentas (Microblink, s.f.).</p>
-<p>El fraude siempre ha estado presente en la sociedad y ha tomado diversas formas a lo largo del tiempo. El fraude con tarjeta de crédito apareció por primera vez en la década de los 80, cuando se produjo un aumento significativo en el uso de tarjetas de crédito, débito y prepago a nivel mundial (Buonaguidi, 2017). Debido a este crecimiento, las instituciones financieras comenzaron a desarrollar sistemas para detectar actividades sospechosas. Inicialmente, estos sistemas se basaban en reglas predefinidas y revisiones manuales basadas en el conocimiento de expertos para identificar comportamientos inusuales en las transacciones. Posteriormente, se empezaron a utilizar métodos estadísticos tradicionales de clasificación, como el análisis discriminante lineal y la regresión logística, los cuales demostraron ser efectivos en muchas aplicaciones. Con el tiempo, se incorporaron técnicas más avanzadas como redes neuronales y otros métodos de aprendizaje automático, así como enfoques basados en reglas (rule-based methods) como Bayes o RIPPER, que permitieron mejorar la detección de patrones asociados al fraude (Bolton &amp; Hand, 2002; Tarazona Nieto et al., 2022).</p>
+<p>El fraude en transacciones con tarjetas de crédito es de los principales peligros para las entidades financieras mundialmente, por esto, detectarlo a tiempo es fundamental para minimizar pérdidas económicas, proteger clientes y mantener confianza en los sistemas de pago electrónico. Su definición es el uso ilegal y no autorizado de la tarjeta de crédito o de los datos del titular de esta para realizar compras o transacciones fraudulentas (Microblink, s.f.).</p>
+<p>El fraude siempre ha estado en la sociedad y ha tomado muchas formas a lo largo del tiempo. Este apareció por primera vez en la década de los 80, cuando se produjo un gran aumento del uso de tarjetas de crédito, débito y prepago mundialmente (Buonaguidi, 2017). Debido a este crecimiento, las instituciones financieras empezar a desarrollar sistemas para la detección de actividades sospechosas. Al inicio, estos sistemas se basaban unicamente en reglas predefinidas y revisiones manuales de expertos para identificar comportamientos inusuales en las transacciones. Luego, se inició el uso de métodos estadístico tradicionales de clasificación, como la regresión logística y el análisis discriminante lineal, que demostraron ser efectivos en muchos casos. Con el paso del tiempo, se fueron incorporando métodos de aprendizaje automático como las redes neuronales, y enfoques basados en reglas (rule-based methods) como RIPPER y Bayes que permitieron mejorar la detección de patrones que se asocian al fraude (Bolton &amp; Hand, 2002; Tarazona Nieto et al., 2022).</p>
 <p>Una de las principales características que dificultan la detección del fraude es que es muy poco frecuente en comparación con las transacciones no fraudulentas, por lo que hay un problema de desbalance de clases, en el sentido de que la clase minoritaria puede estar subrepresentada y esto puede afectar el análisis exploratorio y el rendimiento de los modelos de predicción. El presente trabajo usa el dataset Credit Card Fraud Detection, disponible en el Kaggle, el cual contiene transacciones reales realizadas por los titulares de tarjetas de crédito europeos durante septiembre de 2013.</p>
 </div>
             </section>

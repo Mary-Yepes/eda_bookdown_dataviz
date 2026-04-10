@@ -3,7 +3,7 @@ tab:unnamed-chunk-6
 tab:unnamed-chunk-17
 tab:unnamed-chunk-20
 tab:unnamed-chunk-22
-tab:unnamed-chunk-26
+tab:unnamed-chunk-25
 contexto
 objetivos
 objetivo-general
@@ -15,6 +15,7 @@ análisis-multivariado-y-control-de-multicolinealidad
 fases-del-procesamiento
 herramientas-tecnológicas
 descripción-del-conjunto-de-datos
+análisis-de-datos-atípicos
 limpieza-y-preparación-de-datos
 comprobación-de-duplicados
 conteo-de-datos-faltantes-y-porcentaje
@@ -33,3 +34,4 @@ correlación
 variance-inflation-factor-vif
 análisis-temporal-de-las-transacciones
 conclusión
+referencias
