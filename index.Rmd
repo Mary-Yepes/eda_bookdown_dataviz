@@ -31,15 +31,16 @@ library(png)
 library(caret)
 library(glmnet)
 library(pROC)
+library(patchwork)
 ```
 
 # **Contexto**
 
-El fraude en transacciones con tarjeta de crédito es uno de los principales peligros para las entidades financieras a nivel mundial, por lo que poder detectarlo a tiempo es importante para reducir las pérdidas económicas, proteger a los clientes y mantener la confianza en los sistemas de pago electrónico. El fraude con tarjeta de crédito se refiere al uso ilegal y no autorizado de la tarjeta de crédito o de los datos de la tarjeta de otra persona para realizar transacciones o compras fraudulentas (Microblink, s.f.).
+El fraude en transacciones con tarjetas de crédito es de los principales peligros para las entidades financieras mundialmente, por esto, detectarlo a tiempo es fundamental para minimizar pérdidas económicas, proteger clientes y mantener confianza en los sistemas de pago electrónico.  Su definición es el uso ilegal y no autorizado de la tarjeta de crédito o de los datos del titular de esta para realizar compras o transacciones fraudulentas (Microblink, s.f.).
 
-El fraude siempre ha estado presente en la sociedad y ha tomado diversas formas a lo largo del tiempo. El fraude con tarjeta de crédito apareció por primera vez en la década de los 80, cuando se produjo un aumento significativo en el uso de tarjetas de crédito, débito y prepago a nivel mundial (Buonaguidi, 2017). Debido a este crecimiento, las instituciones financieras comenzaron a desarrollar sistemas para detectar actividades sospechosas. Inicialmente, estos sistemas se basaban en reglas predefinidas y revisiones manuales basadas en el conocimiento de expertos para identificar comportamientos inusuales en las transacciones. Posteriormente, se empezaron a utilizar métodos estadísticos tradicionales de clasificación, como el análisis discriminante lineal y la regresión logística, los cuales demostraron ser efectivos en muchas aplicaciones. Con el tiempo, se incorporaron técnicas más avanzadas como redes neuronales y otros métodos de aprendizaje automático, así como enfoques basados en reglas (rule-based methods) como Bayes o RIPPER, que permitieron mejorar la detección de patrones asociados al fraude (Bolton & Hand, 2002; Tarazona Nieto et al., 2022).
+El fraude siempre ha estado en la sociedad y ha tomado muchas formas a lo largo del tiempo. Este apareció por primera vez en la década de los 80, cuando se produjo un gran aumento del uso de tarjetas de crédito, débito y prepago mundialmente (Buonaguidi, 2017). Debido a este crecimiento, las instituciones financieras empezar a desarrollar sistemas para la detección de actividades sospechosas. Al inicio, estos sistemas se basaban unicamente en reglas predefinidas y revisiones manuales de expertos para identificar comportamientos inusuales en las transacciones. Luego, se inició el uso de métodos estadístico tradicionales de clasificación, como la regresión logística y el análisis discriminante lineal, que demostraron ser efectivos en muchos casos. Con el paso del tiempo, se fueron incorporando métodos de aprendizaje automático como las redes neuronales, y enfoques basados en reglas (rule-based methods) como RIPPER y Bayes que permitieron mejorar la detección de patrones que se asocian al fraude (Bolton & Hand, 2002; Tarazona Nieto et al., 2022).
 
- Una de las principales características que dificultan la detección del fraude es que es muy poco frecuente en comparación con las transacciones no fraudulentas, por lo que hay un problema de desbalance de clases, en el sentido de que la clase minoritaria puede estar subrepresentada y esto puede afectar el análisis exploratorio y el rendimiento de los modelos de predicción. El presente trabajo usa el dataset Credit Card Fraud Detection, disponible en el Kaggle, el cual contiene transacciones reales realizadas por los titulares de tarjetas de crédito europeos durante septiembre de 2013.
+Una de las principales características que dificultan la detección del fraude es que es muy poco frecuente en comparación con las transacciones no fraudulentas, por lo que hay un problema de desbalance de clases, en el sentido de que la clase minoritaria puede estar subrepresentada y esto puede afectar el análisis exploratorio y el rendimiento de los modelos de predicción. El presente trabajo usa el dataset Credit Card Fraud Detection, disponible en el Kaggle, el cual contiene transacciones reales realizadas por los titulares de tarjetas de crédito europeos durante septiembre de 2013.
 
 # **Objetivos**
 
@@ -205,6 +206,10 @@ kable(descripcion_variables,
   column_spec(4, width = "180px") %>%
   column_spec(5, width = "190px")
 ```
+
+## **Análisis de datos atípicos**
+
+Las variables V1-V28 corresponden a componentes principales que se aplicaron por razones de confidencialidad. Teniendo en cuenta que PCA produce variables que ya están normalizadas y centradas, el análisis de outliers clásico no se puede aplicar, pues los valores “extremos” no son errores, son parte de una transformación matemática, tampoco se pueden interpretar, pues no se saben qué mezcla de variables originales producen los valores. En cuanto al tiempo, los segundos corresponden exactamente a dos días, el cual es el rango del estudio, es un timestamp real. Además, en cuanto a las transacciones, en el contexto de detección de fraude, los valores extremos no se eliminan ya que pueden corresponder precisamente a transacciones fraudulentas, que es lo que nos interesa.
 
 # **Limpieza y preparación de datos**
 
@@ -862,7 +867,7 @@ plots <- lapply(seq_along(cols), function(i) {
       outlier.alpha = 0.5
     ) +
     scale_fill_manual(
-      values = c("0" = "#1f77b4", "1" = "#d62728")  # azul = no fraude, rojo = fraude
+      values = c("0" = "#1f77b4", "1" = "#1f77b4")  # azul = no fraude, rojo = fraude
     ) +
     labs(title = cols[i], x = NULL, y = NULL) +
     theme_bw() +
@@ -883,33 +888,6 @@ grid.arrange(
 )
 ```
 
-
-```{r}
-# Asegurar que Class sea factor
-df$Class <- as.factor(df$Class)
-
-# Seleccionar solo V1–V28
-pc_df <- df %>% select(starts_with("V"))
-
-plots <- lapply(colnames(pc_df), function(col) {
-  
-  ggplot(df, aes(x = Class, y = .data[[col]])) +
-    geom_boxplot(fill = "steelblue", outlier.size = 0.3) +
-    labs(title = col, y = NULL, x = NULL) +
-    scale_x_discrete(labels = c("0" = "No fraude",
-                                "1" = "Fraude")) +
-    theme_minimal() +
-    theme(axis.text.x = element_blank(),
-          axis.ticks.x = element_blank())
-})
-
-# Dividir en páginas de 8 plots
-n <- 8
-
-for(i in seq(1, length(plots), by = n)) {
-  print(wrap_plots(plots[i:min(i+n-1, length(plots))], ncol = 4))
-}
-```
 
 De acuerdo a los gráficos, podemos destacar varias cosas:
 
@@ -959,8 +937,8 @@ fig <- fig %>% add_boxplot(
   data = df[df$Class == 1, ],
   y = ~log(Amount),         
   name = "Fraude",
-  marker = list(color = "#d62728"),
-  line = list(color = "#d62728"),
+  marker = list(color = "#1f77b4"),
+  line = list(color = "#1f77b4"),
   fillcolor = "rgba(214, 39, 40, 0.3)",
   showlegend = TRUE
 )
@@ -1110,31 +1088,10 @@ if (length(lista_final) > 0) {
 En este análisis de correlación inicial usando Spearman, muchas de las variables V1-V28 muestran correlaciones bajas entre sí y con las variables Amount y Time, es decir no hay relaciones montónica (no necesariamente lineales) fuertes. No obstante, hay correlaciones visibles como: V21 y V22 tienen una correlación positiva moderada (r = 0.68), mientras que V2 con Amount muestra una correlación negativa moderada (r = -0.50). De todas formas, no se observan patrones de correlación generalizados marcados. Cabe resaltar que la correlación de Pearson, que se sabe que mide la fuerza y dirección de la relación lineal entre dos variables continuas, es aproximadamente 0 entre las variables V1 hasta V28, debido a la ortogonalidad del proceso PCA.  A continuación, se realiza este mismo análisis pero separado por clases.
 
 ```{r}
-
-
-# separar grupos
-df_no_fraude <- df[df$Class == 0, ]
-df_fraude    <- df[df$Class == 1, ]
-
-# quitar Class
-df_no_fraude_corr <- df_no_fraude[, !(names(df_no_fraude) %in% "Class")]
-df_fraude_corr    <- df_fraude[, !(names(df_fraude) %in% "Class")]
-
-# correlaciones Spearman
-corr_no_fraude <- cor(df_no_fraude_corr,
-                      method = "spearman",
-                      use = "complete.obs")
-
-corr_fraude <- cor(df_fraude_corr,
-                   method = "spearman",
-                   use = "complete.obs")
-
-# Función para graficar heatmap triangular
+# Función actualizada: sin leyenda individual
 plot_heatmap <- function(corr_matrix, titulo) {
   
   corr_melt <- melt(corr_matrix)
-  
-  # Triángulo inferior
   corr_melt <- corr_melt[as.numeric(corr_melt$Var1) >
                          as.numeric(corr_melt$Var2), ]
   
@@ -1144,28 +1101,21 @@ plot_heatmap <- function(corr_matrix, titulo) {
                          mid = "white",
                          high = "red",
                          midpoint = 0,
-                         limits = c(-1, 1)) +
+                         limits = c(-1, 1),
+                         name = "Spearman") +
     scale_y_discrete(limits = rev) +
-    labs(title = titulo,
-         x = "",
-         y = "",
-         fill = "Spearman") +
+    labs(title = titulo, x = "", y = "") +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
           plot.title = element_text(hjust = 0.5))
 }
 
-# Crear gráficos
-g1 <- plot_heatmap(corr_no_fraude,
-                   "Correlación Spearman - No Fraude")
+g1 <- plot_heatmap(corr_no_fraude, "Correlación Spearman - No Fraude")
+g2 <- plot_heatmap(corr_fraude,    "Correlación Spearman - Fraude")
 
-g2 <- plot_heatmap(corr_fraude,
-                   "Correlación Spearman - Fraude")
-
-# mostramos gráficos
-g1
-
-g2
+# Combinar con barra compartida
+g1 + g2 + plot_layout(guides = "collect") &
+  theme(legend.position = "right")
 ```
 
 
@@ -1332,7 +1282,7 @@ fig <- plot_ly(
 ) %>%
 layout(
   title = "Mediana del monto de transacciones por hora del día según tipo",
-  xaxis = list(title = "Hora del día (0–23)"),
+  xaxis = list(title = "Hora relativa al inicio del registro"),
   yaxis = list(title = "Mediana del monto de la transacción"),
   legend = list(title = list(text = "Tipo de transacción"))
 )
@@ -1341,10 +1291,20 @@ fig
 ```
 
 
-A simple vista puede parecer que principalmente a las 12:00 am, las medianas de los montos de las transacciones fraudulentas son muy elevadas. De la misma manera ocurre a las 6:00 am y 2:00pm, sin embargo, no de forma tan extrema. No obstante, las transacciones fraudulentas muestran una alta variabilidad, con picos pronunciados en ciertas horas, lo que implica que estos no siguen un patrón uniforme y pueden concentrarse en intervalos específicos con valores elevados como mencionamos anteriormente. En contraste, el monto en las transacciones no fraudulentas presenta un comportamiento relativamente estable a lo largo del tiempo. 
+Note que Time representa los segundos transcurridos desde la primera transacción, luego, las horas son relativas al inicio del registro y no corresponden necesariamente a horas del día reales. Con esto en mente, a simple vista puede parecer que principalmente en la hora relativa 0 (inicio del registro), las medianas de los montos de las transacciones fraudulentas son muy elevadas. De la misma manera ocurre en las horas relativas 6 y 14, sin embargo, no de forma tan extrema. No obstante, las transacciones fraudulentas muestran una alta variabilidad, con picos pronunciados en ciertas horas, lo que implica que estos no siguen un patrón uniforme y pueden concentrarse en intervalos específicos con valores elevados como mencionamos anteriormente. En contraste, el monto en las transacciones no fraudulentas presenta un comportamiento relativamente estable a lo largo del tiempo. 
 
 Aun así, debido al fuerte desbalance presente en la variable objetivo, las fluctuaciones que se observan en la clase fraude podrían estar influenciadas precisamente por el bajo número de observaciones en las horas analizadas. Luego, no es adecuado basar las conclusiones únicamente en la inspección gráfica, por lo que en el futuro se realizaría una prueba estadística formal para evaluar si las diferencias observadas en el tiempo son a causa de un patrón significativo o si pueden atribuirse a variabilidad aleatoria derivada del tamaño muestral reducido en la clase minoritaria.
 
 # **Conclusión**
 
 Este análisis exploratorio muestra que las transacciones fraudulentas y no fraudulentas tienen patrones distintos, aunque con bastante solapamiento en la mayoría de las variablles. Por ejemplo, a pesar de que variables como Time y Amount presenten diferencias estadísticamente significativas, su capacidad para diferenciar entre las clases es baja, gracias a la alta dispersión y superposición de valores entre clases. Por otro lado, en las variables (V1-V28) se identificaron variables con alto, moderado y bajo poder discriminativo, en especial las variables V2, V3, V4, V7, V9, V10, V11, V12, V14, V16 y V17 muestran rangos intercuartílicos separados y un grande tamaño de efecto (RBC > 0.5), por lo que son más útiles para diferenciar entre fraude y no fraude. Siguiendo este orden de ideas, en el EDA se evidencia que las transacciones fraudulentas son más disperas y variables que las no fraudulentas, y que la correlación entre algunas variables (V1-V28) es más fuerte en el grupo fraude, lo que indica ciertos patrones consistentes. Asimismo, las variables PCA tienen baja colinealidad, mientras que Amount es todo lo opuesto, por lo que podría generar redundancia al incluirse en el modelo con estas variables. De manera general, se puede concluir que para el modelado predictivo de fraude es importante agregar las componentes PCA con alto poder discriminativo, en cambio, Time y Amount, aunque son informativas, requieren ser combinadas con otras variables para mejorar su capacidad de clasificación.
+
+# **9. Referencias**
+
+Microblink. (s.f.). *Fraude con tarjetas de crédito*. https://microblink.com/es/resources/glossary/credit-card-fraud/
+
+Buonaguidi, B. (2017, 30 de julio). *Cómo se producen los fraudes con tarjetas de crédito y las reglas de oro para evitarlos*. BBC Mundo. https://www.bbc.com/mundo/vert-cap-40638275
+
+Tarazona Nieto, M. C., Mateus Agudelo, L. C., Becerra Barajas, L. R., & Pérez Beltrán, D. A. (2024). *Métodos de Machine Learning para detección de fraude en transacciones financieras en tiempo real*. Universidad EAN. https://repository.universidadean.edu.co/server/api/core/bitstreams/f055e77b-109e-4047-a1ba-9e7cec92c6bc/content
+
+Bolton, R. J., & Hand, D. J. (2002). Statistical fraud detection: A review. *Statistical Science*, *17(3)*, 235–255. https://doi.org/10.1214/ss/1042727940

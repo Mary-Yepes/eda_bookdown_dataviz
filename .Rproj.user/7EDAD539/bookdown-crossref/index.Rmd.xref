@@ -10,6 +10,7 @@ h2:fases-del-procesamiento
 h2:herramientas-tecnológicas 
 h1:descripción-del-conjunto-de-datos 
 tab:warning Primeras observaciones del dataset de fraude con tarjeta de crédito
+h2:análisis-de-datos-atípicos 
 h1:limpieza-y-preparación-de-datos 
 h2:comprobación-de-duplicados 
 h2:conteo-de-datos-faltantes-y-porcentaje 
@@ -29,4 +30,5 @@ h3:correlación
 h3:variance-inflation-factor-vif 
 h1:análisis-temporal-de-las-transacciones 
 h1:conclusión 
+h1:referencias 
 
