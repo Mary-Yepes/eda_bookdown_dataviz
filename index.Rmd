@@ -963,6 +963,8 @@ Debido a la alta asimetría de la variable `Amount`, se aplicó una transformaci
 Ya que algunas de las variables cuantitativas tienen distribuciones muy sesgadas y colas pesadas, se aplicó el coeficiente de correlación de Spearman, una medida no paramétrica basada en rangos. Este método es más resistente a valores extremos y no necesita asumir normalidad en los datos, como sí lo hace el coeficiente de Pearson. De este modo, se analizan las relaciones monotónica entre las variables sin que la falta de normalidad o los valores atípicos influyan.
 
 ```{r}
+library(reshape2)
+
 # quitar class
 df_corr <- df[, !(names(df) %in% "Class")]
 
@@ -993,6 +995,7 @@ ggplot(corr_melt, aes(x = Var2, y = Var1, fill = value)) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
         plot.title = element_text(hjust = 0.5))
 ```
+
 
 ```{r}
 list_moderada <- list()
@@ -1085,10 +1088,20 @@ if (length(lista_final) > 0) {
 En este análisis de correlación inicial usando Spearman, muchas de las variables V1-V28 muestran correlaciones bajas entre sí y con las variables Amount y Time, es decir no hay relaciones montónica (no necesariamente lineales) fuertes. No obstante, hay correlaciones visibles como: V21 y V22 tienen una correlación positiva moderada (r = 0.68), mientras que V2 con Amount muestra una correlación negativa moderada (r = -0.50). De todas formas, no se observan patrones de correlación generalizados marcados. Cabe resaltar que la correlación de Pearson, que se sabe que mide la fuerza y dirección de la relación lineal entre dos variables continuas, es aproximadamente 0 entre las variables V1 hasta V28, debido a la ortogonalidad del proceso PCA.  A continuación, se realiza este mismo análisis pero separado por clases.
 
 ```{r fig.height=7, fig.width=12, dpi=300}
-# Función actualizada: sin leyenda individual
+# Separar por clase
+df_no_fraude <- df[df$Class == 0, !(names(df) %in% "Class")]
+df_fraude    <- df[df$Class == 1, !(names(df) %in% "Class")]
+
+# Correlaciones Spearman por clase
+corr_no_fraude <- cor(df_no_fraude, method = "spearman", use = "complete.obs")
+corr_fraude    <- cor(df_fraude,    method = "spearman", use = "complete.obs")
+
+
+
 plot_heatmap <- function(corr_matrix, titulo) {
   
-  corr_melt <- melt(corr_matrix)
+  corr_melt <- as.data.frame(as.table(corr_matrix))
+  names(corr_melt) <- c("Var1", "Var2", "value")
   corr_melt <- corr_melt[as.numeric(corr_melt$Var1) >
                          as.numeric(corr_melt$Var2), ]
   
@@ -1109,11 +1122,8 @@ plot_heatmap <- function(corr_matrix, titulo) {
       plot.title = element_text(hjust = 0.5)
     )
 }
-
 g1 <- plot_heatmap(corr_no_fraude, "Correlacion Spearman - No Fraude")
 g2 <- plot_heatmap(corr_fraude,    "Correlacion Spearman - Fraude")
-
-# Combinar con barra compartida
 g1 + g2 + plot_layout(guides = "collect") &
   theme(legend.position = "right")
 ```
@@ -1300,9 +1310,6 @@ Aun así, debido al fuerte desbalance presente en la variable objetivo, las fluc
 Este análisis exploratorio muestra que las transacciones fraudulentas y no fraudulentas tienen patrones distintos, aunque con bastante solapamiento en la mayoría de las variablles. Por ejemplo, a pesar de que variables como Time y Amount presenten diferencias estadísticamente significativas, su capacidad para diferenciar entre las clases es baja, gracias a la alta dispersión y superposición de valores entre clases. Por otro lado, en las variables (V1-V28) se identificaron variables con alto, moderado y bajo poder discriminativo, en especial las variables V2, V3, V4, V7, V9, V10, V11, V12, V14, V16 y V17 muestran rangos intercuartílicos separados y un grande tamaño de efecto (RBC > 0.5), por lo que son más útiles para diferenciar entre fraude y no fraude. Siguiendo este orden de ideas, en el EDA se evidencia que las transacciones fraudulentas son más disperas y variables que las no fraudulentas, y que la correlación entre algunas variables (V1-V28) es más fuerte en el grupo fraude, lo que indica ciertos patrones consistentes. Asimismo, las variables PCA tienen baja colinealidad, mientras que Amount es todo lo opuesto, por lo que podría generar redundancia al incluirse en el modelo con estas variables. De manera general, se puede concluir que para el modelado predictivo de fraude es importante agregar las componentes PCA con alto poder discriminativo, en cambio, Time y Amount, aunque son informativas, requieren ser combinadas con otras variables para mejorar su capacidad de clasificación.
 
 
-
-
-
 # **Modelado**
 
 En esta parte, se encontrará la parte del modelado, en el cual se entrenaran varios modelos y se harán las respectivas pruebas estadísticas para encontrar el más eficientes en términos de métrica y rapidez. Dado que existen muchos modelos, se escogieron los más adecuados de acuerdo al contexto del problema y del dataset, teniendo en cuenta, datos atípicos, valores faltantes y desbalance extremo de clases (99.83% transacciones legítimas vs. 0.17% fraudulentas). Aparte, dado al desbalance extremo que se afronta, se buscará también evaluar el desempeño de los modelos con o sin la aplicación de estas técnicas.
@@ -1441,7 +1448,7 @@ cv <- vfold_cv(datos_entrenamiento, v = 5, strata = Class)
 
 En esta sección, construiremos el `recipe` que sería equivalente a las transformaciones que se hacen dentro del Pipeline en Python. Según el análisis exploratorio de datos que se realizó, no es necesario aplicar imputaciones a los datos, ni transformar las categóricas a enteros, dado que no se cuenta con variables cualitativas. Para mejor rendimiento, se aplicara una normalización de los datos dado que algunos modelos se ven beneficiados con este parámetro, y los que no lo necesitan, no se les aplicara ya que no es necesario.
 
-```{r recipe como preprocesador dentro de pipeline}
+```{r recipe-como-preprocesador-dentro-de-pipeline}
 # --- Recipe (Sin balanceo) ---
 
 # para regresión logistica
@@ -1462,7 +1469,7 @@ Se evaluarán los tres modelos sin optimización de hiperparámetros para establ
 
 Primero, creamos una función reutilizable que nos ayudara a evaluar métricas ya entrenados:
 
-```{r evaluar modelos}
+```{r evaluar-modelos}
 evaluar_modelo <- function(modelo_fit, test_data, nombre_modelo) {
   predicciones <- augment(modelo_fit, new_data = test_data) # devuelve un dataframe con la clase predicha, probabilidad de la clase positiva - Esta aplicando el modelo al test - Equivalente al ".predict" y ".predict_proba" de python
 
@@ -1525,7 +1532,7 @@ graficar_roc <- function(predicciones, nombre_modelo) { # crea una función para
 
 No se aplica escalado ya que Random Forest es robusto a la magnitud de las variables.
 
-```{r benchmark rf}
+```{r benchmark-rf}
 # llamamos al modelo
 rf_modelo <- rand_forest(trees = 100) %>%
   set_engine("ranger", seed = 42, num.threads = parallel::detectCores()) %>% # usamos todos los núcleos del pc
@@ -1563,7 +1570,7 @@ metricas_test <- resultado_rf$metricas %>%
 ```
 
 
-```{r otro formato de tabla rf}
+```{r otro-formato-tabla-rf}
 # Métricas de CV
 metricas_cv_tabla <- collect_metrics(cv_rf) %>%
   filter(.metric %in% c("f_meas", "pr_auc", "precision", "recall", "roc_auc")) %>%
@@ -1610,7 +1617,7 @@ De la matriz confusión, se detectaron 27 falsos negativos, es decir, fraudes qu
 
 ### **XGBoost**
 
-```{r benchmark xgb}
+```{r benchmark-xgb}
 # llamamos al modelo
 xgb_modelo <- boost_tree(trees = 100, tree_depth = 6) %>%
   set_engine("xgboost", seed = 42, nthread = parallel::detectCores()) %>% # usamos todos los núcleos del pc
@@ -1820,7 +1827,7 @@ construir_receta <- function(dataset, tecnica = "ninguna", escalar = FALSE) {
 
 Primero, empezaremos con el modelo Random Forest. En este caso, se definira el siguiente espacio de búsqueda:
 
-```{r definicion modelo rf}
+```{r definicion-modelo-rf}
 # especificación con parámetros a tunear
 spec_rf_tune <- rand_forest(
   trees = tune(),
@@ -1924,7 +1931,7 @@ for (tecnica in tecnicas) {
 
 
 
-```{r cargamos modelo Random Forest, include=FALSE}
+```{r cargamos-modelo-Random-Forest, include=FALSE}
 resultados_optuna_rf <- list()
 for (tecnica in tecnicas) {
   preds  <- readRDS(paste0("resultados/preds_rf_",      tecnica, ".rds"))
@@ -1942,7 +1949,8 @@ for (tecnica in tecnicas) {
 
 
 
-```{r tabla comparativa rf}
+```{r tabla-comparativa-rf}
+
 map_dfr(names(resultados_optuna_rf), function(tecnica) {
   preds  <- resultados_optuna_rf[[tecnica]]$predicciones
   tiempo <- resultados_optuna_rf[[tecnica]]$tiempo
@@ -2018,7 +2026,7 @@ Los gráficos muestran comportamientos similares por técnica. En el modelo sin 
 
 A continuación, continuaremos con el modelo `XGBoost`. En el cual se definio el siguiente espacio de búsqueda,
 
-```{r espacio de busqueda xgb}
+```{r espacio-de-busqueda-xgb}
 # spec se queda igual
 spec_xgb_tune <- boost_tree(
   trees       = tune(),
@@ -2035,6 +2043,7 @@ spec_xgb_tune <- boost_tree(
 
 
 Este espacio de busqueda se definio considerando las características del dataset y las recomendaciones en la literatura. El número de árboles (trees) se limitó a 100-300, ya que con 260,000 observaciones valores mayores incrementan el costo computacional sin mejoras significativas. La profundidad máxima (tree_depth) se acotó entre 3 y 8, buscando un balance entre capacidad de aprendizaje y riesgo de overfitting, puesto que árboles muy profundos tienden a memorizar el ruido del dataset. La tasa de aprendizaje (learn_rate) se exploró en escala logarítmica entre 0.01 y 0.3, rango estándar en la literatura para XGBoost que permite al modelo aprender gradualmente sin divergir. La fracción de observaciones por árbol (sample_size) se fijó entre 0.6 y 1.0 para introducir aleatoriedad controlada y reducir overfitting. El número de variables por split (mtry) se exploró entre 3 y 15, cubriendo valores por encima y por debajo de √30 ≈ 5.5. Finalmente, min_n se mantuvo bajo (1-5) dado el desbalance extremo del dataset, evitando que el modelo ignore los escasos casos de fraude durante la construcción de los árboles.
+
 
 ```{r optuna-xgb, eval=FALSE}
 resultados_optuna_xgb <- list()
@@ -2114,7 +2123,7 @@ for (tecnica in tecnicas) {
 ```
 
 
-```{r cargamos modelo XGboost, include=FALSE}
+```{r cargamos-modelo-XGboost, include=FALSE}
 # para evitar que se corra el modelo llamamos a los resultados ya guardados
 
 resultados_optuna_xgb <- list()
@@ -2135,7 +2144,7 @@ for (tecnica in tecnicas) {
 
 
 
-```{r tabla comparativa xgb}
+```{r tabla-comparativa-xgb}
 map_dfr(names(resultados_optuna_xgb), function(tecnica) {
   preds  <- resultados_optuna_xgb[[tecnica]]$predicciones
   tiempo <- resultados_optuna_xgb[[tecnica]]$tiempo
@@ -2171,7 +2180,7 @@ El peor modelo de XGBoost utilizando estas 4 configuraciones fue en el que se ap
 
 
 
-```{r convergencia xgboost}
+```{r convergencia-xgboost}
 plots <- map(names(resultados_optuna_xgb), function(tecnica) {
   
   # extraer métricas de cada iteración
@@ -2231,7 +2240,7 @@ grid_lr <- grid_random(
 El parámetro `penalty` controla la intensidad de la regularización; se exploró en escala logarítmica ya que es lo recomendado en la literatura, pues permite explorar tanto valores muy pequeños como muy grandes de manera proporcional. Por otro lado, `mixture` controla el tipo de regularización: un valor de 0 corresponde a Ridge (L2), un valor de 1 a Lasso (L1), y valores intermedios a Elastic Net, una combinación de ambas. Se exploró el rango completo entre 0 y 1 para encontrar la mejor combinación de ambas penalizaciones.
 
 
-```{r muestra rl}
+```{r muestra-rl}
 # muestra del 30%
 set.seed(42)
 muestra_entrenamiento <- datos_entrenamiento %>%
@@ -2312,7 +2321,7 @@ cat("Paralelismo cerrado ✓\n")
 ```
 
 
-```{r cargamos modelo RL, include=FALSE}
+```{r cargamos-modelo-RL, include=FALSE}
 # para evitar que se corra el modelo llamamos a los resultados ya guardados
 
 resultados_optuna_lr <- list()
@@ -2365,7 +2374,7 @@ map_dfr(names(resultados_optuna_lr), function(tecnica) {
 Analizando los resultados dados por regresión logística, SMOTE fue la mejor técnica con un F1 de 0.7653 y un balance entre las métricas Precision (0.7653) y Recall (0.7653), lo que indica que el modelo penaliza por igual los falsos positivos y negativos.Por otro lado, Sin balanceo y Class Weight obtuvieron resultados idénticos (F1=0.6946), sugiriendo que Class Weight no aportó ninguna mejora real, en ambos casos se prioriza la precisión (0.8406) pero dejan pasar casi el 40% de los fraudes lo cual no es viable para ninguna empresa o banco. ADASYN fue la peor configuración, aunque detecta el 90% de los fraudes, su precisión se ve sacrificada a 0.028, generando demasiadas falsas alarmas. Adicionalmente, tardó más de 5 horas en entrenarse, siendo la más costosa por mucho. En general, los resultados confirman que Regresión Logística no es suficiente para capturar la complejidad de este problema, siendo superada por XGBoost y Random Forest en todas las técnicas.
 
 
-```{r convergencia RL}
+```{r convergencia-RL}
 plots <- map(names(resultados_optuna_lr), function(tecnica) {
   datos_conv <- resultados_optuna_lr[[tecnica]]$cv_results %>%
     filter(.metric == "f_meas") %>%
@@ -2403,7 +2412,7 @@ De acuerdo a los gráficos se pueden observar distintos comportamiento:
 
 ---
 
-## **Comparación Final de Resultados**
+## **Comparación final de resultados**
 
 Consolidamos todas las métricas de test para seleccionar el mejor modelo y configuración.
 
@@ -2486,31 +2495,10 @@ df_comparacion %>%
   scroll_box(width = "100%")
 ```
 
+<br>
 
 Se observa que el mejor recall (0.8990) es del modelo de regresión logística con optimización de hiperparámetros por medio de Optuna y técnica de balanceo ADASYN; sin embargo, a costa de una precisión realmente mínima de 0.0284, esto no es viable para ninguna empresa o banco gastar tantos costos y molestias en el cliente identificando demasiadas transacciones como fraudulentas cuando son legítimas. En ese orden de ideas, a pesar de que el mejor F1 score en CV (0.8695) es el de XGBoost con Optuna sin técnica de balanceo, por su alta precisión y recall moderado se decidió escoger como mejor modelo XGBoost con Optuna y ADASYN, pues su F1 de 0.8596 es bastante similar al previamente mencionado, mas, tiene un mejor recall (0.7959), por una precision levemente más baja. Con esto en mente, aunque se buscaba optimizar F1 score, no basta con solo ver la métrica, sino analizar más a profundidad para escoger, según la intención del cliente, el modelo que sea más adecuado con lo que necesita, en nuestro caso fue identificar fraudes, es decir tener un alto recall, pero sin sacrificar excesivamente la precisión.
 
-
-
-
-```{r mejor-modelo}
-mejor <- df_comparacion %>%
-  rename(
-    Metodo           = `Metodo`,
-    Tecnica_Balanceo = `Tecnica Balanceo`,
-    Test_F1          = `Test F1`,
-    Test_ROC_AUC     = `Test ROC AUC`,
-    Test_Recall      = `Test Recall`,
-    Test_Precision   = `Test Precision`
-  ) %>%
-  slice(1)
-
-cat("Mejor modelo:         ", mejor$Metodo, "\n")
-cat("Técnica de balanceo:  ", mejor$Tecnica_Balanceo, "\n")
-cat("Test F1:              ", round(mejor$Test_F1, 4), "\n")
-cat("Test ROC AUC:         ", round(mejor$Test_ROC_AUC, 4), "\n")
-cat("Test Recall:          ", round(mejor$Test_Recall, 4), "\n")
-cat("Test Precision:       ", round(mejor$Test_Precision, 4), "\n")
-```
 
 
 ```{r curvas, fig.align='center'}
@@ -2620,7 +2608,7 @@ cm <- conf_mat(
 
 p_cm <- suppressWarnings(autoplot(cm, type = "heatmap") +
   scale_fill_gradient(low = "white", high = "steelblue") +
-  labs(title = "Matriz de Confusión — XGBoost — Optuna — ADASYN") +
+  labs(title = "Matriz de Confusión — XGBoost") +
   theme_bw() +
   theme(plot.title = element_text(size = 11)))
 

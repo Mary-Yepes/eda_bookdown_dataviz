@@ -37,17 +37,17 @@ h2:validación-cruzada-stratifiedkfold
 h2:preprocesamiento-con-recipe 
 h2:modelado-benchmark 
 h3:random-forest 
-tab:benchmark Test — Random Forest
-tab:otro CV vs Test — Random Forest
+tab:benchmark-rf Test — Random Forest
+tab:otro-formato-tabla-rf CV vs Test — Random Forest
 h3:xgboost 
 h3:regresión-logística 
 h3:tabla-comparativa 
 tab:tabla-benchmark Comparativa Benchmark — Test
 h2:optimización-hiperparámetros 
 h3:random-forest-1 
-tab:tabla Resultados Optuna — Random Forest
+tab:tabla-comparativa-rf Resultados Optuna — Random Forest
 h3:xgboost-1 
-tab:tabla Resultados Optuna — XGBoost
+tab:tabla-comparativa-xgb Resultados Optuna — XGBoost
 h3:regresión-logística-1 
 h2:comparación-final-de-resultados 
 tab:comparacion-final Comparación Final — Test
